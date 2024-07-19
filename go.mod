@@ -2,6 +2,9 @@ module github.com/consensys/gnark-crypto
 
 go 1.19
 
+replace github.com/consensys/gnark-crypto/ecc/bls12-377/fp => ./ecc/bls12-377/fp
+replace github.com/consensys/gnark-crypto/ecc/bls12-377/fr => ./ecc/bls12-377/fr
+
 require (
 	github.com/bits-and-blooms/bitset v1.7.0
 	github.com/consensys/bavard v0.1.13
@@ -10,6 +13,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/crypto v0.17.0
+	golang.org/x/exp v0.0.0-20240716175740-e3f259677ff7
 	golang.org/x/sys v0.15.0
 	gopkg.in/yaml.v2 v2.4.0
 )
