@@ -28,6 +28,17 @@ func TestVecMul(t *testing.T) {
 	expectedLo1_2 := uint64(0)
 	checkVecMul(t, x2, y2, expectedHi0_2, expectedHi1_2, expectedLo0_2, expectedLo1_2)
 
+
+	// Test case 3: Big Ints
+	max := ^uint64(0)
+	x3 := []uint64{max, max}
+	y3 := []uint64{1, 1}
+	expectedHi0_3 := uint64(max)
+	expectedHi1_3 := uint64(max)
+	expectedLo0_3 := uint64(max)
+	expectedLo1_3 := uint64(max)
+	checkVecMul(t, x3, y3, expectedHi0_3, expectedHi1_3, expectedLo0_3, expectedLo1_3)
+
 }
 
 // Helper function to check VecMul results against expected values
