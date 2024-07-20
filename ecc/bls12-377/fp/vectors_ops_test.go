@@ -8,19 +8,31 @@ import (
 
 func TestVecMul(t *testing.T) {
 	// Sample input
-	x := []uint64{1, 2}
-	y := []uint64{4, 5}
+	x1 := []uint64{1, 2}
+	y1 := []uint64{4, 5}
 
 	// Expected output
 	expectedHi0 := uint64(0)
 	expectedHi1 := uint64(0)
 	expectedLo0 := uint64(4)
 	expectedLo1 := uint64(10)
+	checkVecMul(t, x1, y1, expectedHi0, expectedHi1, expectedLo0, expectedLo1)
 
-	// Call VecMul function
+
+	// Test case 2: Zero values
+	x2 := []uint64{0, 0}
+	y2 := []uint64{4, 5}
+	expectedHi0_2 := uint64(0)
+	expectedHi1_2 := uint64(0)
+	expectedLo0_2 := uint64(0)
+	expectedLo1_2 := uint64(0)
+	checkVecMul(t, x2, y2, expectedHi0_2, expectedHi1_2, expectedLo0_2, expectedLo1_2)
+
+}
+
+// Helper function to check VecMul results against expected values
+func checkVecMul(t *testing.T, x, y []uint64, expectedHi0, expectedHi1, expectedLo0, expectedLo1 uint64) {
 	hi0, hi1, lo0, lo1 := VecMul(x, y)
-
-	// Use require package for assertions
 	require.Equal(t, expectedHi0, hi0, "hi0 mismatch")
 	require.Equal(t, expectedHi1, hi1, "hi1 mismatch")
 	require.Equal(t, expectedLo0, lo0, "lo0 mismatch")
