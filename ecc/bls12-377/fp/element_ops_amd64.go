@@ -604,6 +604,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 	}
 	return c
 }
+
 // Square z = x * x (mod q)
 //
 // x must be less than q

@@ -71,6 +71,16 @@ func reduce(z *Element) {
 	_reduceGeneric(z)
 }
 
+// Mihir
+func VecAdd(x, y, carry []uint64) (sum0, sum1, carry0, carry1 uint64) {
+	panic("not implemented")
+}
+
+func VecMul(x, y []uint64) (hi0, hi1, lo0, lo1 uint64) {
+	panic("not implemented")
+
+}
+
 // Mul z = x * y (mod q)
 //
 // x and y must be less than q
