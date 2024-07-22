@@ -81,11 +81,9 @@ func TestVecAdd(t *testing.T) {
 }
 
 func TestVecMul(t *testing.T) {
-	// Sample input
+	// Test case 1: Small numbers
 	x1 := []uint64{1, 2}
 	y1 := []uint64{4, 5}
-
-	// Expected output
 	expectedHi0 := uint64(0)
 	expectedHi1 := uint64(0)
 	expectedLo0 := uint64(4)
@@ -101,19 +99,27 @@ func TestVecMul(t *testing.T) {
 	expectedLo1_2 := uint64(0)
 	checkVecMul(t, x2, y2, expectedHi0_2, expectedHi1_2, expectedLo0_2, expectedLo1_2)
 
-	// Test case 3: Big Ints
-	max := ^uint64(0)
-	x3 := []uint64{max, max}
+	// Test case 3: Multiply by 1
+	x3 := []uint64{10, 20}
 	y3 := []uint64{1, 1}
-	expectedHi0_3 := uint64(max)
-	expectedHi1_3 := uint64(max)
-	expectedLo0_3 := uint64(max)
-	expectedLo1_3 := uint64(max)
+	expectedHi0_3 := uint64(0)
+	expectedHi1_3 := uint64(0)
+	expectedLo0_3 := uint64(10)
+	expectedLo1_3 := uint64(20)
 	checkVecMul(t, x3, y3, expectedHi0_3, expectedHi1_3, expectedLo0_3, expectedLo1_3)
+
+	// Test case 4: Multiply big integers
+	x4 := []uint64{18446744073709551615, 18446744073709551615}
+	y4 := []uint64{2, 3}
+	expectedHi0_4 := uint64(1)
+	expectedHi1_4 := uint64(2)
+	expectedLo0_4 := uint64(18446744073709551614)
+	expectedLo1_4 := uint64(18446744073709551613)
+	checkVecMul(t, x4, y4, expectedHi0_4, expectedHi1_4, expectedLo0_4, expectedLo1_4)
 
 }
 
-// Helper function to check VecMul results against expected values
+// helper function to check VecMul results against expected values
 func checkVecMul(t *testing.T, x, y []uint64, expectedHi0, expectedHi1, expectedLo0, expectedLo1 uint64) {
 	hi0, hi1, lo0, lo1 := VecMul(x, y)
 	require.Equal(t, expectedHi0, hi0, "hi0 mismatch")
