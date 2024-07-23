@@ -127,3 +127,18 @@ func checkVecMul(t *testing.T, x, y []uint64, expectedHi0, expectedHi1, expected
 	require.Equal(t, expectedLo0, lo0, "lo0 mismatch")
 	require.Equal(t, expectedLo1, lo1, "lo1 mismatch")
 }
+
+func TestVecMontMul(t *testing.T) {
+	var x, y, z, expected, res Element
+	val1 := 1
+	val2 := 4
+	x.SetUint64(uint64(val1))
+	y.SetUint64(uint64(val2))
+	res.SetUint64(uint64(val1 * val2))
+	z.Mul(&x, &y)
+	expected.MulCIOS(&x, &y)
+	fmt.Printf("Expected:%d\n", expected)
+	if z != res {
+		t.Errorf("Error: expected %d, got %d", res, z)
+	}
+}
