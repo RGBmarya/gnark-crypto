@@ -63,7 +63,7 @@ func reduce(z *Element) {
 // Mul z = x * y (mod q)
 //
 // x and y must be less than q
-func (z *Element) Mul(x, y *Element) *Element {
+func (z *Element) MulCIOS(x, y *Element) *Element {
 
 	// Implements CIOS multiplication -- section 2.3.2 of Tolga Acar's thesis
 	// https://www.microsoft.com/en-us/research/wp-content/uploads/1998/06/97Acar.pdf
@@ -270,6 +270,10 @@ func (z *Element) Mul(x, y *Element) *Element {
 		z[3], _ = bits.Sub64(z[3], q3, b)
 	}
 	return z
+}
+
+func (z *Element) Mul(x, y *Element) *Element {
+	panic("Not implemented")
 }
 
 // Square z = x * x (mod q)
