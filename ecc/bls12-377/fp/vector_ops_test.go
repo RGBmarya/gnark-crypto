@@ -128,17 +128,35 @@ func checkVecMul(t *testing.T, x, y []uint64, expectedHi0, expectedHi1, expected
 	require.Equal(t, expectedLo1, lo1, "lo1 mismatch")
 }
 
+func TestCriticalCarry(t *testing.T) {
+	hi_p0 := (uint64)(1)
+	lo_p0 := (uint64)(2)
+	t0 := (uint64)(3)
+	d1 := (uint64)(8)
+
+	hi_p1 := (uint64)(1)
+	lo_p1 := (uint64)(18446744073709551615)
+	t1 := (uint64)(18446744073709551614)
+	e1 := (uint64)(3)
+	var res1, res2 uint64
+
+	sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei := VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
+	_, _, c1, c2 := VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
+	res1, res2, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+	if res1 != 0 && res2 != 3 {
+		t.Errorf("Error: expected final carries to be 0 and 2, got %d and %d", res1, res2)
+	}
+}
+
 func TestVecMontMul(t *testing.T) {
-	var x, y, z, expected, res Element
+	var x, y, z, expected Element
 	val1 := 1
 	val2 := 4
 	x.SetUint64(uint64(val1))
 	y.SetUint64(uint64(val2))
-	res.SetUint64(uint64(val1 * val2))
+	expected.SetUint64(uint64(val1 * val2))
 	z.Mul(&x, &y)
-	expected.MulCIOS(&x, &y)
-	fmt.Printf("Expected:%d\n", expected)
-	if z != res {
-		t.Errorf("Error: expected %d, got %d", res, z)
+	if z != expected {
+		t.Errorf("Error: expected %d, got %d", expected, z)
 	}
 }
