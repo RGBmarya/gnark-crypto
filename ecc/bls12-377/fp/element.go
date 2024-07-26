@@ -85,6 +85,8 @@ func Modulus() *big.Int {
 // used for Montgomery reduction
 const qInvNeg uint64 = 9586122913090633727
 
+const qInv uint64 = 8860621160618917889
+
 func init() {
 	_modulus.SetString("1ae3a4617c510eac63b05c06ca1493b1a22d9f300f5138f1ef3622fba094800170b5d44300000008508c00000000001", 16)
 }
