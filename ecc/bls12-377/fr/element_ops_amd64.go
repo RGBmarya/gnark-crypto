@@ -102,18 +102,16 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 }
 
 //go:noescape
-func VecMul_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
+func VecAdd_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
 
 //go:noescape
-func VecAdd_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64, v []uint64)
+func VecMul_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
 
-// Mihir
 func VecAdd(x, y, carry []uint64) (sum0, sum1, carry0, carry1 uint64) {
 	// fix size at 2
 	sum := make([]uint64, 2)
-	carryOut := make([]uint64, 2)
-	VecAdd_AVX2_I64(x, y, carry, carryOut, sum)
-	return sum[0], sum[1], carryOut[0], carryOut[1]
+	VecAdd_AVX2_I64(x, y, carry, sum)
+	return sum[0], sum[1], carry[0], carry[1]
 }
 
 func VecMul(x, y []uint64) (hi0, hi1, lo0, lo1 uint64) {
@@ -123,6 +121,7 @@ func VecMul(x, y []uint64) (hi0, hi1, lo0, lo1 uint64) {
 	VecMul_AVX2_I64(x, y, hi, low)
 	return hi[0], hi[1], low[0], low[1]
 }
+
 
 // Mul z = x * y (mod q)
 //
