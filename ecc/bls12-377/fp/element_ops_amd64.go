@@ -21,7 +21,6 @@ package fp
 
 import (
 	"math/bits"
-	"golang.org/x/exp/slices"
 )
 
 //go:noescape
