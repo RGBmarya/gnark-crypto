@@ -405,6 +405,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 // x must be less than q
 func (z *Element) Square(x *Element) *Element {
 	// see Mul for doc.
-	mul(z, x, x)
-	return z
+	// mul(z, x, x)
+	return z.Mul(x, x)
 }

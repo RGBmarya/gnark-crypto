@@ -113,7 +113,6 @@ func VecAdd(x, y, carry []uint64) (sum0, sum1, carry0, carry1 uint64) {
 	VecAdd_AVX2_I64(x, y, carry, sum)
 	return sum[0], sum[1], carry[0], carry[1]
 }
-
 func VecMul(x, y []uint64) (hi0, hi1, lo0, lo1 uint64) {
 	// fix size at 2
 	hi := make([]uint64, 2)
@@ -576,6 +575,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 // x must be less than q
 func (z *Element) Square(x *Element) *Element {
 	// see Mul for doc.
-	mul(z, x, x)
-	return z
+	// mul(z, x, x)
+	return z.Mul(x, x)
 }
