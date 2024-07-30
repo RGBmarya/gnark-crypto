@@ -146,15 +146,50 @@ func TestCriticalCarry(t *testing.T) {
 	if res1 != 0 && res2 != 3 {
 		t.Errorf("Error: expected final carries to be 0 and 2, got %d and %d", res1, res2)
 	}
+
+	// Temporary slices for VecAdd_AVX2_I64
+	vecX := make([]uint64, 2) // input1
+	vecY := make([]uint64, 2) // input2
+	vecZ := make([]uint64, 2) // carry/carryOut
+	vecU := make([]uint64, 2) // sum
+
+	// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
+	vecX[0], vecX[1] = t0, t1
+	vecY[0], vecY[1] = d1, e1
+	vecZ[0], vecZ[1] = 0, 0
+	VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
+	sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
+	c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
+	// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
+	vecX[0], vecX[1] = lo_p0, lo_p1
+	vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
+	vecZ[0], vecZ[1] = 0, 0
+	VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
+	_, _ = vecU[0], vecU[1]
+	c1, c2 = vecZ[0], vecZ[1]
+	// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+	vecX[0], vecX[1] = hi_p0, hi_p1
+	vecY[0], vecY[1] = c1, c2
+	vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
+	VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
+	res1, res2 = vecU[0], vecU[1]
+	if res1 != 0 && res2 != 3 {
+		t.Errorf("Error: expected final carries to be 0 and 2, got %d and %d", res1, res2)
+	}
 }
 
 func TestVecMontMul(t *testing.T) {
 	var x, y, z, expected Element
 	val1 := 1
 	val2 := 4
+	fmt.Println("Setting x to 1")
 	x.SetUint64(uint64(val1))
+
+	fmt.Println("Setting y to 4")
 	y.SetUint64(uint64(val2))
 	expected.SetUint64(uint64(val1 * val2))
+
+	fmt.Println("Multiplying x and y")
 	z.Mul(&x, &y)
 	if z != expected {
 		t.Errorf("Error: expected %d, got %d", expected, z)

@@ -64,7 +64,14 @@ func reduce(z *Element) {
 	_reduceGeneric(z)
 }
 
-// Mihir
+func VecAdd_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64) {
+	panic("not implemented")
+}
+
+func VecMul_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64) {
+	panic(("not implemented"))
+}
+
 func VecAdd(x, y, carry []uint64) (sum0, sum1, carry0, carry1 uint64) {
 	panic("not implemented")
 }
@@ -434,6 +441,10 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 		z[5], _ = bits.Sub64(z[5], q5, b)
 	}
 	return z
+}
+
+func (z *Element) Mulv1(x, y *Element) *Element {
+	panic("Not implemented")
 }
 
 func (z *Element) Mul(x, y *Element) *Element {
