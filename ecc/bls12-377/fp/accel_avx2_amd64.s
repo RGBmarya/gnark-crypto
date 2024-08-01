@@ -2,53 +2,6 @@
 
 #include "textflag.h"
 
-// func VecAdd_I64_AVX2(x []int, y []int, z []int, u []int)
-// Requires: AVX, SSE, SSE2
-TEXT ·VecAdd_I64_AVX2(SB), NOSPLIT, $8-96
-	MOVQ  x_base+0(FP), DI
-	MOVQ  y_base+24(FP), SI
-	MOVQ  z_base+48(FP), DX
-	MOVQ  u_base+72(FP), CX
-	PUSHQ BP
-	MOVQ  SP, BP
-	SUBQ  $0x20, SP
-	MOVQ  DI, -8(BP)
-	MOVQ  SI, -16(BP)
-	MOVQ  DX, -24(BP)
-	MOVQ  CX, -32(BP)
-	MOVQ  -32(BP), CX
-	MOVQ  -24(BP), DX
-	MOVQ  -16(BP), SI
-	MOVQ  -8(BP), AX
-	MOVQ  AX, DI
-	CALL  VecAdd_V
-	NOP
-	RET
-
-// func VecMul_I64_AVX2(x []int, y []int, z []int, u []int)
-// Requires: AVX, AVX2
-TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
-	MOVQ  x_base+0(FP), DI
-	MOVQ  y_base+24(FP), SI
-	MOVQ  z_base+48(FP), DX
-	MOVQ  u_base+72(FP), CX
-	PUSHQ BP
-	MOVQ  SP, BP
-	SUBQ  $0x20, SP
-	MOVQ  DI, -8(BP)
-	MOVQ  SI, -16(BP)
-	MOVQ  DX, -24(BP)
-	MOVQ  CX, -32(BP)
-	MOVQ  -32(BP), CX
-	MOVQ  -24(BP), DX
-	MOVQ  -16(BP), SI
-	MOVQ  -8(BP), AX
-	MOVQ  AX, DI
-	CALL  void
-	CALL  VecAdd_V
-	NOP
-	RET
-
 // func VecAdd_V(x []int, y []int, z []int, u []int)
 TEXT ·VecAdd_V(SB), NOSPLIT, $8-96
 	MOVQ  x_base+0(FP), DI
@@ -133,6 +86,53 @@ TEXT ·VecAdd_V(SB), NOSPLIT, $8-96
 	MOVQ  DX, (AX)
 	NOP
 	POPQ  BP
+	RET
+
+// func VecAdd_I64_AVX2(x []int, y []int, z []int, u []int)
+// Requires: AVX, SSE, SSE2
+TEXT ·VecAdd_I64_AVX2(SB), NOSPLIT, $8-96
+	MOVQ  x_base+0(FP), DI
+	MOVQ  y_base+24(FP), SI
+	MOVQ  z_base+48(FP), DX
+	MOVQ  u_base+72(FP), CX
+	PUSHQ BP
+	MOVQ  SP, BP
+	SUBQ  $0x20, SP
+	MOVQ  DI, -8(BP)
+	MOVQ  SI, -16(BP)
+	MOVQ  DX, -24(BP)
+	MOVQ  CX, -32(BP)
+	MOVQ  -32(BP), CX
+	MOVQ  -24(BP), DX
+	MOVQ  -16(BP), SI
+	MOVQ  -8(BP), AX
+	MOVQ  AX, DI
+	CALL  VecAdd_V
+	NOP
+	RET
+
+// func VecMul_I64_AVX2(x []int, y []int, z []int, u []int)
+// Requires: AVX, AVX2
+TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
+	MOVQ  x_base+0(FP), DI
+	MOVQ  y_base+24(FP), SI
+	MOVQ  z_base+48(FP), DX
+	MOVQ  u_base+72(FP), CX
+	PUSHQ BP
+	MOVQ  SP, BP
+	SUBQ  $0x20, SP
+	MOVQ  DI, -8(BP)
+	MOVQ  SI, -16(BP)
+	MOVQ  DX, -24(BP)
+	MOVQ  CX, -32(BP)
+	MOVQ  -32(BP), CX
+	MOVQ  -24(BP), DX
+	MOVQ  -16(BP), SI
+	MOVQ  -8(BP), AX
+	MOVQ  AX, DI
+	CALL  void
+	CALL  VecAdd_V
+	NOP
 	RET
 
 // func VecMul_V(x []int, y []int, z []int, u []int)
