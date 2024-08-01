@@ -2,53 +2,88 @@
 
 #include "textflag.h"
 
-// func VecMul_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
-// Requires: AVX, AVX2
-TEXT ·VecMul_AVX2_I64(SB), NOSPLIT, $0-96
-	MOVQ     x_base+0(FP), DI
-	MOVQ     y_base+24(FP), SI
-	MOVQ     z_base+48(FP), DX
-	MOVQ     u_base+72(FP), CX
-	VMOVDQU  (DI), X0
-	VMOVDQU  (SI), X1
-	VPSRLQ   $0x20, X0, X2
-	VPMULUDQ X0, X1, X3
-	VPSRLQ   $0x20, X3, X4
-	VPMULUDQ X2, X1, X5
-	VPADDQ   X5, X4, X4
-	VPXOR    X6, X6, X6
-	VPBLENDD $0x0a, X6, X4, X6
-	VPSRLQ   $0x20, X4, X4
-	VPSRLQ   $0x20, X1, X1
-	VPMULUDQ X0, X1, X0
-	VPADDQ   X0, X6, X6
-	VPMULUDQ X2, X1, X1
-	VPADDQ   X1, X4, X1
-	VPSRLQ   $0x20, X6, X2
-	VPADDQ   X2, X1, X1
-	VMOVDQU  X1, (DX)
-	VPADDQ   X0, X5, X0
-	VPSLLQ   $0x20, X0, X0
-	VPADDQ   X0, X3, X0
-	VMOVDQU  X0, (CX)
-	RET
-
-// func VecAdd_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
-// Requires: AVX
+// func VecAdd_AVX2_I64(x []int, y []int, z []int, u []int)
+// Requires: AVX, SSE, SSE2
 TEXT ·VecAdd_AVX2_I64(SB), NOSPLIT, $0-96
 	MOVQ    x_base+0(FP), DI
 	MOVQ    y_base+24(FP), SI
 	MOVQ    z_base+48(FP), DX
 	MOVQ    u_base+72(FP), CX
-	VMOVDQA (DI), X0
-	VMOVDQA (SI), X1
-	VPADDQ  X0, X1, X2
-	VPADDQ  (DX), X2, X2
-	VMOVDQU X2, (CX)
-	VPAND   X0, X1, X3
-	VPOR    X0, X1, X0
-	VPANDN  X0, X2, X0
-	VPOR    X3, X0, X0
-	VPSRLQ  $0x3f, X0, X0
-	VMOVDQU X0, (DX)
+	VMOVDQU (DI), X1
+	VMOVDQU (SI), X2
+	VMOVDQU (DX), X0
+	VMOVDQA X1, X3
+	PADDQ   X2, X0
+	POR     X2, X3
+	PADDQ   X1, X0
+	PAND    X2, X1
+	MOVUPS  X0, (CX)
+	PANDN   X3, X0
+	POR     X1, X0
+	PSRLQ   $0x3f, X0
+	MOVUPS  X0, (DX)
+	RET
+
+// func VecMul_AVX2_I64(x []int, y []int, z []int, u []int)
+// Requires: AVX, AVX2
+TEXT ·VecMul_AVX2_I64(SB), NOSPLIT, $8-96
+	MOVQ  x_base+0(FP), DI
+	MOVQ  y_base+24(FP), SI
+	MOVQ  z_base+48(FP), DX
+	MOVQ  u_base+72(FP), CX
+	MOVQ  DI, R8
+	PUSHQ BP
+	MOVQ  SI, DI
+	MOVQ  DX, SI
+	PUSHQ BX
+	MOVQ  (R8), R9
+	MOVQ  (DI), R10
+	MOVQ  8(R8), R8
+	MOVL  R9, DX
+	MOVQ  R9, R11
+	MOVQ  8(DI), DI
+	MOVL  R10, BP
+	MOVQ  DX, AX
+	SHRQ  $0x20, R11
+	MOVQ  R10, BX
+	IMULQ BP, AX
+	SHRQ  $0x20, BX
+	IMULQ R11, BP
+	IMULQ BX, DX
+	SHRQ  $0x20, AX
+	IMULQ BX, R11
+	ADDQ  BP, AX
+	IMULQ R10, R9
+	MOVL  DI, R10
+	MOVL  AX, BP
+	SHRQ  $0x20, AX
+	ADDQ  BP, DX
+	ADDQ  R11, AX
+	MOVQ  DI, R11
+	SHRQ  $0x20, DX
+	MOVQ  R9, (CX)
+	MOVQ  R8, R9
+	SHRQ  $0x20, R11
+	ADDQ  DX, AX
+	MOVL  R8, DX
+	SHRQ  $0x20, R9
+	MOVQ  DX, BX
+	IMULQ R11, DX
+	MOVQ  AX, (SI)
+	IMULQ R10, BX
+	IMULQ R9, R10
+	IMULQ R11, R9
+	SHRQ  $0x20, BX
+	IMULQ DI, R8
+	ADDQ  R10, BX
+	MOVL  BX, AX
+	SHRQ  $0x20, BX
+	ADDQ  AX, DX
+	ADDQ  R9, BX
+	MOVQ  R8, 8(CX)
+	SHRQ  $0x20, DX
+	ADDQ  DX, BX
+	MOVQ  BX, 8(SI)
+	POPQ  BX
+	POPQ  BP
 	RET
