@@ -50,7 +50,7 @@ TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
 	RET
 
 // func VecAdd_V(x []int, y []int, z []int, u []int)
-TEXT ·VecAdd(SB), NOSPLIT, $8-96
+TEXT ·VecAdd_V(SB), NOSPLIT, $8-96
 	MOVQ  x_base+0(FP), DI
 	MOVQ  y_base+24(FP), SI
 	MOVQ  z_base+48(FP), DX
@@ -136,7 +136,7 @@ TEXT ·VecAdd(SB), NOSPLIT, $8-96
 	RET
 
 // func VecMul_V(x []int, y []int, z []int, u []int)
-TEXT ·VecMul(SB), NOSPLIT, $8-96
+TEXT ·VecMul_V(SB), NOSPLIT, $8-96
 	MOVQ  x_base+0(FP), DI
 	MOVQ  y_base+24(FP), SI
 	MOVQ  z_base+48(FP), DX
