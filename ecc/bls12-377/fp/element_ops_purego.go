@@ -81,6 +81,14 @@ func VecMul(x, y []uint64) (hi0, hi1, lo0, lo1 uint64) {
 
 }
 
+func VecAdd_V(x []uint64, y []uint64, z []uint64, u []uint64){
+	panic("not implemented")
+}
+
+func VecMul_V(x []uint64, y []uint64, z []uint64, u []uint64){
+	panic("not implemented")
+}
+
 // Mul z = x * y (mod q)
 //
 // x and y must be less than q
