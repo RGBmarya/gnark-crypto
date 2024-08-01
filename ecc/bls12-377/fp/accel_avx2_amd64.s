@@ -40,8 +40,8 @@ TEXT ·VecAdd_AVX2_I64(SB), NOSPLIT, $0-96
 	MOVQ    y_base+24(FP), SI
 	MOVQ    z_base+48(FP), DX
 	MOVQ    u_base+72(FP), CX
-	VMOVDQU (DI), X0
-	VMOVDQU (SI), X1
+	VMOVDQA (DI), X0
+	VMOVDQA (SI), X1
 	VPADDQ  X0, X1, X2
 	VPADDQ  (DX), X2, X2
 	VMOVDQU X2, (CX)
