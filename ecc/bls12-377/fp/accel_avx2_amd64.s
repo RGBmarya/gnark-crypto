@@ -21,7 +21,6 @@ TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
 	MOVQ  -16(BP), SI
 	MOVQ  -8(BP), AX
 	MOVQ  AX, DI
-	CALL  void
 	CALL  VecMul_v
 	NOP
 	RET
@@ -45,7 +44,6 @@ TEXT ·VecAdd_I64(SB), NOSPLIT, $8-96
 	MOVQ  -16(BP), SI
 	MOVQ  -8(BP), AX
 	MOVQ  AX, DI
-	CALL  void
 	CALL  VecAdd_v
 	NOP
 	RET
