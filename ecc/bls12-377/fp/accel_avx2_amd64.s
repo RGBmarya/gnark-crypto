@@ -2,115 +2,6 @@
 
 #include "textflag.h"
 
-// func VecAdd_V(x []int, y []int, z []int, u []int)
-TEXT ·VecAdd_V(SB), NOSPLIT, $8-96
-	MOVQ  x_base+0(FP), DI
-	MOVQ  y_base+24(FP), SI
-	MOVQ  z_base+48(FP), DX
-	MOVQ  u_base+72(FP), CX
-	PUSHQ BP
-	MOVQ  SP, BP
-	MOVQ  DI, -8(BP)
-	MOVQ  SI, -16(BP)
-	MOVQ  DX, -24(BP)
-	MOVQ  CX, -32(BP)
-	MOVQ  -8(BP), AX
-	MOVQ  (AX), DX
-	MOVQ  -16(BP), AX
-	MOVQ  (AX), AX
-	ADDQ  AX, DX
-	MOVQ  -24(BP), AX
-	MOVQ  (AX), AX
-	ADDQ  AX, DX
-	MOVQ  -32(BP), AX
-	MOVQ  DX, (AX)
-	MOVQ  -8(BP), AX
-	MOVQ  (AX), DX
-	MOVQ  -16(BP), AX
-	MOVQ  (AX), AX
-	MOVQ  DX, CX
-	ANDQ  AX, CX
-	MOVQ  -8(BP), AX
-	MOVQ  (AX), DX
-	MOVQ  -16(BP), AX
-	MOVQ  (AX), AX
-	ORQ   AX, DX
-	MOVQ  -32(BP), AX
-	MOVQ  (AX), AX
-	NOTQ  AX
-	ANDQ  DX, AX
-	ORQ   CX, AX
-	SHRQ  $0x3f, AX
-	MOVQ  AX, DX
-	MOVQ  -24(BP), AX
-	MOVQ  DX, (AX)
-	MOVQ  -8(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), DX
-	MOVQ  -16(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), AX
-	LEAQ  (DX)(AX*1), CX
-	MOVQ  -24(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), DX
-	MOVQ  -32(BP), AX
-	ADDQ  $0x08, AX
-	ADDQ  CX, DX
-	MOVQ  DX, (AX)
-	MOVQ  -8(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), DX
-	MOVQ  -16(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), AX
-	MOVQ  DX, CX
-	ANDQ  AX, CX
-	MOVQ  -8(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), DX
-	MOVQ  -16(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), AX
-	ORQ   AX, DX
-	MOVQ  -32(BP), AX
-	ADDQ  $0x08, AX
-	MOVQ  (AX), AX
-	NOTQ  AX
-	ANDQ  DX, AX
-	ORQ   AX, CX
-	MOVQ  CX, DX
-	MOVQ  -24(BP), AX
-	ADDQ  $0x08, AX
-	SHRQ  $0x3f, DX
-	MOVQ  DX, (AX)
-	NOP
-	POPQ  BP
-	RET
-
-// func VecAdd_I64_AVX2(x []int, y []int, z []int, u []int)
-// Requires: AVX, SSE, SSE2
-TEXT ·VecAdd_I64_AVX2(SB), NOSPLIT, $8-96
-	MOVQ  x_base+0(FP), DI
-	MOVQ  y_base+24(FP), SI
-	MOVQ  z_base+48(FP), DX
-	MOVQ  u_base+72(FP), CX
-	PUSHQ BP
-	MOVQ  SP, BP
-	SUBQ  $0x20, SP
-	MOVQ  DI, -8(BP)
-	MOVQ  SI, -16(BP)
-	MOVQ  DX, -24(BP)
-	MOVQ  CX, -32(BP)
-	MOVQ  -32(BP), CX
-	MOVQ  -24(BP), DX
-	MOVQ  -16(BP), SI
-	MOVQ  -8(BP), AX
-	MOVQ  AX, DI
-	CALL  VecAdd_V
-	NOP
-	RET
-
 // func VecMul_I64_AVX2(x []int, y []int, z []int, u []int)
 // Requires: AVX, AVX2
 TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
@@ -131,7 +22,31 @@ TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
 	MOVQ  -8(BP), AX
 	MOVQ  AX, DI
 	CALL  void
-	CALL  VecAdd_V
+	CALL  VecMul_v
+	NOP
+	RET
+
+// func VecAdd_I64_AVX2(x []int, y []int, z []int, u []int)
+// Requires: AVX, SSE, SSE2
+TEXT ·VecAdd_I64(SB), NOSPLIT, $8-96
+	MOVQ  x_base+0(FP), DI
+	MOVQ  y_base+24(FP), SI
+	MOVQ  z_base+48(FP), DX
+	MOVQ  u_base+72(FP), CX
+	PUSHQ BP
+	MOVQ  SP, BP
+	SUBQ  $0x20, SP
+	MOVQ  DI, -8(BP)
+	MOVQ  SI, -16(BP)
+	MOVQ  DX, -24(BP)
+	MOVQ  CX, -32(BP)
+	MOVQ  -32(BP), CX
+	MOVQ  -24(BP), DX
+	MOVQ  -16(BP), SI
+	MOVQ  -8(BP), AX
+	MOVQ  AX, DI
+	CALL  void
+	CALL  VecAdd_v
 	NOP
 	RET
 
@@ -262,3 +177,88 @@ TEXT ·VecMul_V(SB), NOSPLIT, $8-96
 	POPQ  BP
 	RET
 
+// func VecAdd_V(x []int, y []int, z []int, u []int)
+TEXT ·VecAdd_V(SB), NOSPLIT, $8-96
+	MOVQ  x_base+0(FP), DI
+	MOVQ  y_base+24(FP), SI
+	MOVQ  z_base+48(FP), DX
+	MOVQ  u_base+72(FP), CX
+	PUSHQ BP
+	MOVQ  SP, BP
+	MOVQ  DI, -8(BP)
+	MOVQ  SI, -16(BP)
+	MOVQ  DX, -24(BP)
+	MOVQ  CX, -32(BP)
+	MOVQ  -8(BP), AX
+	MOVQ  (AX), DX
+	MOVQ  -16(BP), AX
+	MOVQ  (AX), AX
+	ADDQ  AX, DX
+	MOVQ  -24(BP), AX
+	MOVQ  (AX), AX
+	ADDQ  AX, DX
+	MOVQ  -32(BP), AX
+	MOVQ  DX, (AX)
+	MOVQ  -8(BP), AX
+	MOVQ  (AX), DX
+	MOVQ  -16(BP), AX
+	MOVQ  (AX), AX
+	MOVQ  DX, CX
+	ANDQ  AX, CX
+	MOVQ  -8(BP), AX
+	MOVQ  (AX), DX
+	MOVQ  -16(BP), AX
+	MOVQ  (AX), AX
+	ORQ   AX, DX
+	MOVQ  -32(BP), AX
+	MOVQ  (AX), AX
+	NOTQ  AX
+	ANDQ  DX, AX
+	ORQ   CX, AX
+	SHRQ  $0x3f, AX
+	MOVQ  AX, DX
+	MOVQ  -24(BP), AX
+	MOVQ  DX, (AX)
+	MOVQ  -8(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), DX
+	MOVQ  -16(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), AX
+	LEAQ  (DX)(AX*1), CX
+	MOVQ  -24(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), DX
+	MOVQ  -32(BP), AX
+	ADDQ  $0x08, AX
+	ADDQ  CX, DX
+	MOVQ  DX, (AX)
+	MOVQ  -8(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), DX
+	MOVQ  -16(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), AX
+	MOVQ  DX, CX
+	ANDQ  AX, CX
+	MOVQ  -8(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), DX
+	MOVQ  -16(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), AX
+	ORQ   AX, DX
+	MOVQ  -32(BP), AX
+	ADDQ  $0x08, AX
+	MOVQ  (AX), AX
+	NOTQ  AX
+	ANDQ  DX, AX
+	ORQ   AX, CX
+	MOVQ  CX, DX
+	MOVQ  -24(BP), AX
+	ADDQ  $0x08, AX
+	SHRQ  $0x3f, DX
+	MOVQ  DX, (AX)
+	NOP
+	POPQ  BP
+	RET
