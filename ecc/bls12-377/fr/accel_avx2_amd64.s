@@ -21,7 +21,7 @@ TEXT ·VecMul_I64_AVX2(SB), NOSPLIT, $8-96
 	MOVQ  -16(BP), SI
 	MOVQ  -8(BP), AX
 	MOVQ  AX, DI
-	CALL  VecMul_V
+	CALL  VecMul_AVX2_V
 	NOP
 	RET
 
@@ -44,12 +44,13 @@ TEXT ·VecAdd_I64(SB), NOSPLIT, $8-96
 	MOVQ  -16(BP), SI
 	MOVQ  -8(BP), AX
 	MOVQ  AX, DI
-	CALL  VecAdd_V
+	CALL  VecAdd_AVX2_V
 	NOP
 	RET
 
-// func VecMul_V(x []int, y []int, z []int, u []int)
-TEXT ·VecMul_V(SB), NOSPLIT, $8-96
+// func VecMul_AVX2_V(x []int, y []int, z []int, u []int)
+// Requires: AVX, AVX2
+TEXT ·VecMul_AVX2_V(SB), NOSPLIT, $8-96
 	MOVQ  x_base+0(FP), DI
 	MOVQ  y_base+24(FP), SI
 	MOVQ  z_base+48(FP), DX
@@ -175,8 +176,9 @@ TEXT ·VecMul_V(SB), NOSPLIT, $8-96
 	POPQ  BP
 	RET
 
-// func VecAdd_V(x []int, y []int, z []int, u []int)
-TEXT ·VecAdd_V(SB), NOSPLIT, $8-96
+// func VecAdd_AVX2_V(x []int, y []int, z []int, u []int)
+// Requires: AVX, AVX2
+TEXT ·VecAdd_AVX2_V(SB), NOSPLIT, $8-96
 	MOVQ  x_base+0(FP), DI
 	MOVQ  y_base+24(FP), SI
 	MOVQ  z_base+48(FP), DX

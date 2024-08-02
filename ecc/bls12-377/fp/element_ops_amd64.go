@@ -102,10 +102,10 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 }
 
 //go:noescape
-func VecAdd_V(x []uint64, y []uint64, z []uint64, u []uint64)
+func VecAdd_AVX2_V(x []uint64, y []uint64, z []uint64, u []uint64)
 
 //go:noescape
-func VecMul_V(x []uint64, y []uint64, z []uint64, u []uint64)
+func VecMul_AVX2_V(x []uint64, y []uint64, z []uint64, u []uint64)
 
 //go:noescape
 func VecAdd_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
