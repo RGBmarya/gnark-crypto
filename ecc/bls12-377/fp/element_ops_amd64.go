@@ -645,12 +645,18 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// di = 0, ei = 0 for 0 <= i < n, where n is 6 in the case of fp
 	var d0, d1, d2, d3, d4, d5 uint64
 	var e0, e1, e2, e3, e4, e5 uint64
-	vecX := align32Uint64(2) // input1
-	vecY := align32Uint64(2) // input2
-	vecZ := align32Uint64(2) // carry/carryOut
-	vecU := align32Uint64(2) // sum
-	vecajq := align32Uint64(2) // {aj, q}
-	vecTemp := align32Uint64(2) // {y[i], qi}
+	// vecX := align32Uint64(2) // input1
+	// vecY := align32Uint64(2) // input2
+	// vecZ := align32Uint64(2) // carry/carryOut
+	// vecU := align32Uint64(2) // sum
+	// vecajq := align32Uint64(2) // {aj, q}
+	// vecTemp := align32Uint64(2) // {y[i], qi}
+	vecX := make([]uint64, 2) // input1
+	vecY := make([]uint64, 2) // input2
+	vecZ := make([]uint64, 2) // carry/carryOut
+	vecU := make([]uint64, 2) // sum
+	vecajq := make([]uint64, 2) // {aj, q}
+	vecTemp := make([]uint64, 2) // {y[i], qi}
 
 	{
 		// first iteration -> j=0
