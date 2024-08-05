@@ -645,6 +645,12 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// di = 0, ei = 0 for 0 <= i < n, where n is 6 in the case of fp
 	var d0, d1, d2, d3, d4, d5 uint64
 	var e0, e1, e2, e3, e4, e5 uint64
+	vecX := align32Uint64(2) // input1
+	vecY := align32Uint64(2) // input2
+	vecZ := align32Uint64(2) // carry/carryOut
+	vecU := align32Uint64(2) // sum
+	vecajq := align32Uint64(2) // {aj, q}
+	vecTemp := align32Uint64(2) // {y[i], qi}
 
 	{
 		// first iteration -> j=0
@@ -668,12 +674,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 			// Temporary slices for VecAdd_AVX2_I64
 		// vecX := make([]uint64, 2) // input1
-		vecX := align32Uint64(2) // input1
-		vecY := align32Uint64(2) // input2
-		vecZ := align32Uint64(2) // carry/carryOut
-		vecU := align32Uint64(2) // sum
-		vecajq := align32Uint64(2) // {aj, q}
-		vecTemp := align32Uint64(2) // {y[i], qi}
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
@@ -835,12 +835,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// Temporary slices for VecAdd_AVX2_I64
 		// vecX := make([]uint64, 2) // input1
-		vecX := align32Uint64(2) // input1
-		vecY := align32Uint64(2) // input2
-		vecZ := align32Uint64(2) // carry/carryOut
-		vecU := align32Uint64(2) // sum
-		vecajq := align32Uint64(2) // {aj, q}
-		vecTemp := align32Uint64(2) // {y[i], qi}
 
 		aj := x[1] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -1027,12 +1021,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// Temporary slices for VecAdd_AVX2_I64
 		// vecX := make([]uint64, 2) // input1
-		vecX := align32Uint64(2) // input1
-		vecY := align32Uint64(2) // input2
-		vecZ := align32Uint64(2) // carry/carryOut
-		vecU := align32Uint64(2) // sum
-		vecajq := align32Uint64(2) // {aj, q}
-		vecTemp := align32Uint64(2) // {y[i], qi}
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
@@ -1194,12 +1182,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// Temporary slices for VecAdd_AVX2_I64
 		// vecX := make([]uint64, 2) // input1
-		vecX := align32Uint64(2) // input1
-		vecY := align32Uint64(2) // input2
-		vecZ := align32Uint64(2) // carry/carryOut
-		vecU := align32Uint64(2) // sum
-		vecajq := align32Uint64(2) // {aj, q}
-		vecTemp := align32Uint64(2) // {y[i], qi}
 
 		aj := x[3] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -1373,12 +1355,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// Temporary slices for VecAdd_AVX2_I64
 		// vecX := make([]uint64, 2) // input1
-		vecX := align32Uint64(2) // input1
-		vecY := align32Uint64(2) // input2
-		vecZ := align32Uint64(2) // carry/carryOut
-		vecU := align32Uint64(2) // sum
-		vecajq := align32Uint64(2) // {aj, q}
-		vecTemp := align32Uint64(2) // {y[i], qi}
 
 		aj := x[4] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -1552,12 +1528,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// Temporary slices for VecAdd_AVX2_I64
 		// vecX := make([]uint64, 2) // input1
-		vecX := align32Uint64(2) // input1
-		vecY := align32Uint64(2) // input2
-		vecZ := align32Uint64(2) // carry/carryOut
-		vecU := align32Uint64(2) // sum
-		vecajq := align32Uint64(2) // {aj, q}
-		vecTemp := align32Uint64(2) // {y[i], qi}
 
 		aj := x[5] // x[j] for the j-th iteration
 		b0 := y[0]
