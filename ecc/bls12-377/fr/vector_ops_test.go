@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/bits"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/require"
 )
@@ -80,6 +81,35 @@ func TestVecAdd(t *testing.T) {
 	}
 }
 
+func TestVecAddAligned(t *testing.T) {
+	x := align32Uint64(2)
+	y := align32Uint64(2)
+	carry := align32Uint64(2)
+	addr := uintptr(unsafe.Pointer(&x[0]))
+	if addr%32 == 0 {
+		fmt.Println("Array is 32-byte aligned")
+	} else {
+		fmt.Println("Array is not 32-byte aligned")
+	}
+
+	fmt.Printf("Aligned Array Address: %x\n", addr)
+	addr = uintptr(unsafe.Pointer(&y[0]))
+	if addr%32 == 0 {
+		fmt.Println("Array is 32-byte aligned")
+	} else {
+		fmt.Println("Array is not 32-byte aligned")
+	}
+	fmt.Printf("Aligned Array Address: %x\n", addr)
+
+	x[0] = 1
+	x[1] = 5
+	y[0] = 7
+	y[1] = 9
+	s1, s2, c1, c2 := VecAdd(x, y, carry)
+	fmt.Println(s1, s2, c1, c2)
+}
+
+/*
 func TestVecMul(t *testing.T) {
 	// Test case 1: Small numbers
 	x1 := []uint64{1, 2}
@@ -117,6 +147,55 @@ func TestVecMul(t *testing.T) {
 	expectedLo1_4 := uint64(18446744073709551613)
 	checkVecMul(t, x4, y4, expectedHi0_4, expectedHi1_4, expectedLo0_4, expectedLo1_4)
 
+}
+*/
+
+func TestVecMulAligned(t *testing.T) {
+	// Test case 1: Small numbers
+	x := align32Uint64(2)
+	y := align32Uint64(2)
+	x[0] = 1
+	x[1] = 2
+	y[0] = 4
+	y[1] = 5
+	expectedHi0 := uint64(0)
+	expectedHi1 := uint64(0)
+	expectedLo0 := uint64(4)
+	expectedLo1 := uint64(10)
+	checkVecMul(t, x, y, expectedHi0, expectedHi1, expectedLo0, expectedLo1)
+
+	// Test case 2: Zero values
+	x[0] = 0
+	x[1] = 0
+	y[0] = 4
+	y[1] = 5
+	expectedHi0_2 := uint64(0)
+	expectedHi1_2 := uint64(0)
+	expectedLo0_2 := uint64(0)
+	expectedLo1_2 := uint64(0)
+	checkVecMul(t, x, y, expectedHi0_2, expectedHi1_2, expectedLo0_2, expectedLo1_2)
+
+	// Test case 3: Multiply by 1
+	x[0] = 10
+	x[1] = 20
+	y[0] = 1
+	y[1] = 1
+	expectedHi0_3 := uint64(0)
+	expectedHi1_3 := uint64(0)
+	expectedLo0_3 := uint64(10)
+	expectedLo1_3 := uint64(20)
+	checkVecMul(t, x, y, expectedHi0_3, expectedHi1_3, expectedLo0_3, expectedLo1_3)
+
+	// Test case 4: Multiply big integers
+	x[0] = 18446744073709551615
+	x[1] = 18446744073709551615
+	y[0] = 2
+	y[1] = 3
+	expectedHi0_4 := uint64(1)
+	expectedHi1_4 := uint64(2)
+	expectedLo0_4 := uint64(18446744073709551614)
+	expectedLo1_4 := uint64(18446744073709551613)
+	checkVecMul(t, x, y, expectedHi0_4, expectedHi1_4, expectedLo0_4, expectedLo1_4)
 }
 
 // helper function to check VecMul results against expected values

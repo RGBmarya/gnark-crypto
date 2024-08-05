@@ -19,7 +19,10 @@
 
 package fr
 
-import "math/bits"
+import (
+	"math/bits"
+	"unsafe"
+)
 
 // MulBy3 x *= 3 (mod q)
 func MulBy3(x *Element) {
@@ -289,6 +292,16 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 	return z
 }
 
+func align32Uint64(n int) []uint64 {
+	// Allocate enough memory to ensure we can align within the slice
+	buf := make([]uint64, n+4) // +4 to ensure we have extra space for alignment
+	addr := uintptr(unsafe.Pointer(&buf[0]))
+	alignedAddr := (addr + 31) &^ 31
+	offset := int((alignedAddr - addr) / unsafe.Sizeof(buf[0]))
+	alignedSlice := buf[offset : offset+n]
+	return alignedSlice
+}
+
 func (z *Element) Mulv1(x, y *Element) *Element {
 	panic("Not implemented")
 }
@@ -296,6 +309,7 @@ func (z *Element) Mulv1(x, y *Element) *Element {
 func (z *Element) Mul(x, y *Element) *Element {
 	panic("Not implemented")
 }
+
 
 // Square z = x * x (mod q)
 //
