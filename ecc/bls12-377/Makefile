@@ -10,5 +10,5 @@ profile:
 	cd /home1/msarya/Dev/gnark-crypto/ecc/bls12-377/profiles/$(version) && \
 	touch BenchmarkMultiExpG1-cpu-profile-v$(version).pdf && \
 	touch BenchmarkMultiExpG1-mem-profile-v$(version).pdf && \
-	go tool pprof -pdf cpu-profile-v$(version).out > BenchmarkMultiExpG1-cpu-profile-v$(version).pdf && \
-	go tool pprof -pdf mem-profile-v$(version).out > BenchmarkMultiExpG1-mem-profile-v$(version).pdf
+	go tool pprof -pdf BenchmarkMultiExpG1-cpu-profile-v$(version).out > BenchmarkMultiExpG1-cpu-profile-v$(version).pdf && \
+	go tool pprof -pdf BenchmarkMultiExpG1-mem-profile-v$(version).out > BenchmarkMultiExpG1-mem-profile-v$(version).pdf
