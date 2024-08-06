@@ -22,6 +22,7 @@ package fp
 import (
 	"math/bits"
 	"unsafe"
+	"fmt"
 )
 
 //go:noescape
@@ -656,6 +657,9 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// [4, 5] = hi1, hi2
 	// [6, 7] = lo1, lo2
 	{
+		fmt.Println("j = 0")
+		fmt.Println(d0, d1, d2, d3, d4, d5)
+		fmt.Println(e0, e1, e2, e3, e4, e5)
 		// first iteration -> j=0
 		var t0, t1 uint64
 		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
@@ -669,50 +673,73 @@ func (c *Element) Mul(x, y *Element) *Element {
 		// Calculating q
 		// This is q is NOT the field modulus; q stores the intermediate value from Computation 2
 		diff_d0_e0, _ = bits.Sub64(d0, e0, 0)
+		fmt.Printf("diff_d0_e0:%d\n", diff_d0_e0)
 		// To avoid repeated computation of ajb0, we directly assign to t0 (Computation 1)
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
 		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
+		fmt.Printf("t0:%d, lo_aj_b0:%d\n", t0, lo_aj_b0)
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
+		fmt.Printf("sum_lo_ajb0_diff_d0e0:%d\n", sum_lo_ajb0_diff_d0e0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
+		fmt.Printf("t1:%d, lo_qm0:%d\n", t1, lo_qm0)
 		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
 		vecAdd[2], vecAdd[3] = d0, e0
+		fmt.Printf("vecAdd:%d\n", vecAdd)
 		VecAdd_AVX2_I64(&vecAdd)
+		fmt.Printf("vecAdd:%d\n", vecAdd)
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		fmt.Printf("vecAdd:%d\n", vecAdd)
 		VecAdd_AVX2_I64(&vecAdd)
+		fmt.Printf("vecAdd:%d\n", vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
+		fmt.Printf("t0:%d, t1:%d\n", t0, t1)
 
 		// i = 1
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[1], q1 // modify
+		fmt.Printf("vecMul:%d\n", vecMul)
 		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		fmt.Printf("vecMul:%d\n", vecMul)
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		fmt.Println("hi_p0, hi_p1, lo_p0, lo_p1")
+		fmt.Println(hi_p0, hi_p1, lo_p0, lo_p1)
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d1, e1 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
+		fmt.Printf("vecAdd: %d\n", vecAdd)
 		VecAdd_AVX2_I64(&vecAdd)
+		fmt.Printf("vecAdd: %d\n", vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+		fmt.Printf("sum_t0_di: %d, sum_t1_ei: %d\n", sum_t0_di, sum_t1_ei)
+		fmt.Printf("c_t0_di: %d, c_t1_ei: %d\n", c_t0_di, c_t1_ei)
 
 		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
+		fmt.Printf("vecAdd: %d\n", vecAdd)
 		VecAdd_AVX2_I64(&vecAdd)
+		fmt.Printf("vecAdd: %d\n", vecAdd)
 		d0, e0 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
+		fmt.Printf("d0: %d, e0: %d\n", d0, e0)
+		fmt.Printf("c1: %d, c2: %d", c1, c2)
 		
 		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		fmt.Printf("vecAdd: %d\n", vecAdd)
 		VecAdd_AVX2_I64(&vecAdd)
+		fmt.Printf("vecAdd: %d\n", vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
-
+		fmt.Printf("t0: %d, t1:%d\n", t0, t1)
 
 		// i = 2
 		vecMul[0], vecMul[1] = aj, q
@@ -832,7 +859,10 @@ func (c *Element) Mul(x, y *Element) *Element {
 	}
 
 	{
-		// first iteration -> j=0
+		fmt.Println("j = 1")
+		fmt.Println(d0, d1, d2, d3, d4, d5)
+		fmt.Println(e0, e1, e2, e3, e4, e5)
+		// second iteration -> j=1
 		var t0, t1 uint64
 		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
 		var lo_qm0 uint64 // temp vars for i = 0
@@ -1008,7 +1038,10 @@ func (c *Element) Mul(x, y *Element) *Element {
 	}
 
 	{
-		// first iteration -> j=0
+		fmt.Println("j = 2")
+		fmt.Println(d0, d1, d2, d3, d4, d5)
+		fmt.Println(e0, e1, e2, e3, e4, e5)
+		// second iteration -> j=1
 		var t0, t1 uint64
 		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
 		var lo_qm0 uint64 // temp vars for i = 0
@@ -1184,6 +1217,9 @@ func (c *Element) Mul(x, y *Element) *Element {
 	}
 
 	{
+		fmt.Println("j = 3")
+		fmt.Println(d0, d1, d2, d3, d4, d5)
+		fmt.Println(e0, e1, e2, e3, e4, e5)
 		// fourth iteration -> j=3
 		var t0, t1 uint64
 		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
@@ -1739,3 +1775,4 @@ func (z *Element) Square(x *Element) *Element {
 	// mul(z, x, x)
 	return z.Mul(x, x)
 }
+
