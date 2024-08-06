@@ -4,148 +4,195 @@ import (
 	"fmt"
 	"math/bits"
 	"testing"
-	"unsafe"
 
 	"github.com/stretchr/testify/require"
+	// "github.com/stretchr/testify/require"
 )
 
 func TestVecAdd(t *testing.T) {
 	// Test case 1: Vectors with zero elements
-	x := []uint64{0, 0}
-	y := []uint64{0, 0}
-	carry := []uint64{0, 0}
-	expectedSum0, expectedCarry0 := bits.Add64(x[0], y[0], carry[0])
-	expectedSum1, expectedCarry1 := bits.Add64(x[1], y[1], carry[1])
-	sum0, sum1, carry0, carry1 := VecAdd(x, y, carry)
-	fmt.Println(sum0, sum1, carry0, carry1)
-	if sum0 != expectedSum0 || sum1 != expectedSum1 || carry0 != expectedCarry0 || carry1 != expectedCarry1 {
+	in := [8]uint64{}
+	// x
+	in[0] = 0 // x1
+	in[1] = 0 // x2
+	// y
+	in[2] = 0 // y1
+	in[3] = 0 // y2
+	//carry
+	in[4] = 0
+	in[5] = 0
+	expectedSum0, expectedCarry0 := bits.Add64(in[0], in[2], in[4])
+	expectedSum1, expectedCarry1 := bits.Add64(in[1], in[3], in[5])
+	VecAdd_AVX2_I64(&in)
+	fmt.Printf("sum1: %d, sum2:%d\n", in[6], in[7])
+	fmt.Printf("carry1: %d, sum2:%d\n", in[4], in[5])
+	if in[6] != expectedSum0 || in[7] != expectedSum1 || in[4] != expectedCarry0 || in[5] != expectedCarry1 {
 		t.Errorf("Test case 1 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
 			expectedSum0, expectedSum1, expectedCarry0, expectedCarry1,
-			sum0, sum1, carry0, carry1)
+			in[6], in[7], in[4], in[5])
 	}
 
 	// Test case 2: Vectors with single element
-	x = []uint64{1, 0}
-	y = []uint64{2, 0}
-	carry = []uint64{0, 0}
-	expectedSum0, expectedCarry0 = bits.Add64(x[0], y[0], carry[0])
-	expectedSum1, expectedCarry1 = bits.Add64(x[1], y[1], carry[1])
-	sum0, sum1, carry0, carry1 = VecAdd(x, y, carry)
-	fmt.Println(sum0, sum1, carry0, carry1)
-	if sum0 != expectedSum0 || sum1 != expectedSum1 || carry0 != expectedCarry0 || carry1 != expectedCarry1 {
-		t.Errorf("Test case 2 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
+	// x
+	in[0] = 1 // x1
+	in[1] = 0 // x2
+	// y
+	in[2] = 2 // y1
+	in[3] = 0 // y2
+	//carry
+	in[4] = 0
+	in[5] = 0
+	expectedSum0, expectedCarry0 = bits.Add64(in[0], in[2], in[4])
+	expectedSum1, expectedCarry1 = bits.Add64(in[1], in[3], in[5])
+	VecAdd_AVX2_I64(&in)
+	fmt.Printf("sum1: %d, sum2:%d\n", in[6], in[7])
+	fmt.Printf("carry1: %d, sum2:%d\n", in[4], in[5])
+	if in[6] != expectedSum0 || in[7] != expectedSum1 || in[4] != expectedCarry0 || in[5] != expectedCarry1 {
+		t.Errorf("Test case 1 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
 			expectedSum0, expectedSum1, expectedCarry0, expectedCarry1,
-			sum0, sum1, carry0, carry1)
+			in[6], in[7], in[4], in[5])
 	}
 
 	// Test case 3: Vectors with multiple elements
-	x = []uint64{1, 2}
-	y = []uint64{4, 5}
-	carry = []uint64{0, 0}
-	expectedSum0, expectedCarry0 = bits.Add64(x[0], y[0], carry[0])
-	expectedSum1, expectedCarry1 = bits.Add64(x[1], y[1], carry[1])
-	sum0, sum1, carry0, carry1 = VecAdd(x, y, carry)
-	fmt.Println(sum0, sum1, carry0, carry1)
-	if sum0 != expectedSum0 || sum1 != expectedSum1 || carry0 != expectedCarry0 || carry1 != expectedCarry1 {
-		t.Errorf("Test case 3 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
+	// x
+	in[0] = 1 // x1
+	in[1] = 2 // x2
+	// y
+	in[2] = 4 // y1
+	in[3] = 5 // y2
+	//carry
+	in[4] = 0
+	in[5] = 0
+	expectedSum0, expectedCarry0 = bits.Add64(in[0], in[2], in[4])
+	expectedSum1, expectedCarry1 = bits.Add64(in[1], in[3], in[5])
+	VecAdd_AVX2_I64(&in)
+	fmt.Printf("sum1: %d, sum2:%d\n", in[6], in[7])
+	fmt.Printf("carry1: %d, sum2:%d\n", in[4], in[5])
+	if in[6] != expectedSum0 || in[7] != expectedSum1 || in[4] != expectedCarry0 || in[5] != expectedCarry1 {
+		t.Errorf("Test case 1 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
 			expectedSum0, expectedSum1, expectedCarry0, expectedCarry1,
-			sum0, sum1, carry0, carry1)
+			in[6], in[7], in[4], in[5])
 	}
 
 	// Test case 4: Vectors with carry
-	x = []uint64{1, 2}
-	y = []uint64{4, 5}
-	carry = []uint64{1, 1}
-	expectedSum0, expectedCarry0 = bits.Add64(x[0], y[0], carry[0])
-	expectedSum1, expectedCarry1 = bits.Add64(x[1], y[1], carry[1])
-	sum0, sum1, carry0, carry1 = VecAdd(x, y, carry)
-	fmt.Println(sum0, sum1, carry0, carry1)
-	if sum0 != expectedSum0 || sum1 != expectedSum1 || carry0 != expectedCarry0 || carry1 != expectedCarry1 {
-		t.Errorf("Test case 4 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
+	// x
+	in[0] = 1 // x1
+	in[1] = 2 // x2
+	// y
+	in[2] = 4 // y1
+	in[3] = 5 // y2
+	//carry
+	in[4] = 1
+	in[5] = 1
+	expectedSum0, expectedCarry0 = bits.Add64(in[0], in[2], in[4])
+	expectedSum1, expectedCarry1 = bits.Add64(in[1], in[3], in[5])
+	VecAdd_AVX2_I64(&in)
+	fmt.Printf("sum1: %d, sum2:%d\n", in[6], in[7])
+	fmt.Printf("carry1: %d, sum2:%d\n", in[4], in[5])
+	if in[6] != expectedSum0 || in[7] != expectedSum1 || in[4] != expectedCarry0 || in[5] != expectedCarry1 {
+		t.Errorf("Test case 1 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
 			expectedSum0, expectedSum1, expectedCarry0, expectedCarry1,
-			sum0, sum1, carry0, carry1)
+			in[6], in[7], in[4], in[5])
 	}
-
 	// Test case 5: Vectors with large numbers
-	x = []uint64{18446744073709551615, 18446744073709551615}
-	y = []uint64{1, 1}
-	carry = []uint64{0, 0}
-	expectedSum0, expectedCarry0 = bits.Add64(x[0], y[0], carry[0])
-	expectedSum1, expectedCarry1 = bits.Add64(x[1], y[1], carry[1])
-	sum0, sum1, carry0, carry1 = VecAdd(x, y, carry)
-	fmt.Println(sum0, sum1, carry0, carry1)
-	if sum0 != expectedSum0 || sum1 != expectedSum1 || carry0 != expectedCarry0 || carry1 != expectedCarry1 {
-		t.Errorf("Test case 5 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
+	// x
+	in[0] = 18446744073709551615 // x1
+	in[1] = 18446744073709551615 // x2
+	// y
+	in[2] = 1 // y1
+	in[3] = 1 // y2
+	//carry
+	in[4] = 0
+	in[5] = 0
+	expectedSum0, expectedCarry0 = bits.Add64(in[0], in[2], in[4])
+	expectedSum1, expectedCarry1 = bits.Add64(in[1], in[3], in[5])
+	VecAdd_AVX2_I64(&in)
+	fmt.Printf("sum1: %d, sum2:%d\n", in[6], in[7])
+	fmt.Printf("carry1: %d, sum2:%d\n", in[4], in[5])
+	if in[6] != expectedSum0 || in[7] != expectedSum1 || in[4] != expectedCarry0 || in[5] != expectedCarry1 {
+		t.Errorf("Test case 1 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
 			expectedSum0, expectedSum1, expectedCarry0, expectedCarry1,
-			sum0, sum1, carry0, carry1)
+			in[6], in[7], in[4], in[5])
 	}
 }
+
+/*
 func TestVecAddAligned(t *testing.T) {
 	x := align32Uint64(2)
 	y := align32Uint64(2)
 	carry := align32Uint64(2)
 	addr := uintptr(unsafe.Pointer(&x[0]))
 	if addr%32 == 0 {
-		fmt.Println("Array is 32-byte aligned")
+		fmt.Println("x Array is 32-byte aligned")
 	} else {
-		fmt.Println("Array is not 32-byte aligned")
+		t.Errorf("x Array is not 32-byte aligned")
+		return
 	}
 
-	fmt.Printf("Aligned Array Address: %x\n", addr)
+	fmt.Printf("x Array Address: %x\n", addr)
 	addr = uintptr(unsafe.Pointer(&y[0]))
 	if addr%32 == 0 {
-		fmt.Println("Array is 32-byte aligned")
+		fmt.Println("y Array is 32-byte aligned")
 	} else {
-		fmt.Println("Array is not 32-byte aligned")
+		t.Errorf("y Array is not 32-byte aligned")
+		return
 	}
-	fmt.Printf("Aligned Array Address: %x\n", addr)
+	fmt.Printf("y Array Address: %x\n", addr)
 
 	x[0] = 1
 	x[1] = 5
 	y[0] = 7
 	y[1] = 9
-	s1, s2, c1, c2 := VecAdd(x, y, carry)
-	fmt.Println(s1, s2, c1, c2)
+	expectedSum0, expectedCarry0 := bits.Add64(x[0], y[0], 0)
+	expectedSum1, expectedCarry1 := bits.Add64(x[1], y[1], 0)
+	sum0, sum1, carry0, carry1 := VecAdd(x, y, carry)
+	if sum0 != expectedSum0 || sum1 != expectedSum1 || carry0 != expectedCarry0 || carry1 != expectedCarry1 {
+		t.Errorf("Test case 5 failed: expected (%d, %d, %d, %d), got (%d, %d, %d, %d)",
+			expectedSum0, expectedSum1, expectedCarry0, expectedCarry1,
+			sum0, sum1, carry0, carry1)
+	}
+}
+*/
+
+func TestVecMul(t *testing.T) {
+	// Test case 1: Small numbers
+	x1 := [2]uint64{1, 2}
+	y1 := [2]uint64{4, 5}
+	expectedHi0 := uint64(0)
+	expectedHi1 := uint64(0)
+	expectedLo0 := uint64(4)
+	expectedLo1 := uint64(10)
+	checkVecMul(t, x1, y1, expectedHi0, expectedHi1, expectedLo0, expectedLo1)
+
+	// Test case 2: Zero values
+	x2 := [2]uint64{0, 0}
+	y2 := [2]uint64{4, 5}
+	expectedHi0_2 := uint64(0)
+	expectedHi1_2 := uint64(0)
+	expectedLo0_2 := uint64(0)
+	expectedLo1_2 := uint64(0)
+	checkVecMul(t, x2, y2, expectedHi0_2, expectedHi1_2, expectedLo0_2, expectedLo1_2)
+
+	// Test case 3: Multiply by 1
+	x3 := [2]uint64{10, 20}
+	y3 := [2]uint64{1, 1}
+	expectedHi0_3 := uint64(0)
+	expectedHi1_3 := uint64(0)
+	expectedLo0_3 := uint64(10)
+	expectedLo1_3 := uint64(20)
+	checkVecMul(t, x3, y3, expectedHi0_3, expectedHi1_3, expectedLo0_3, expectedLo1_3)
+
+	// Test case 4: Multiply big integers
+	x4 := [2]uint64{18446744073709551615, 18446744073709551615}
+	y4 := [2]uint64{2, 3}
+	expectedHi0_4 := uint64(1)
+	expectedHi1_4 := uint64(2)
+	expectedLo0_4 := uint64(18446744073709551614)
+	expectedLo1_4 := uint64(18446744073709551613)
+	checkVecMul(t, x4, y4, expectedHi0_4, expectedHi1_4, expectedLo0_4, expectedLo1_4)
 }
 
-// func TestVecMul(t *testing.T) {
-// 	// Test case 1: Small numbers
-// 	x1 := []uint64{1, 2}
-// 	y1 := []uint64{4, 5}
-// 	expectedHi0 := uint64(0)
-// 	expectedHi1 := uint64(0)
-// 	expectedLo0 := uint64(4)
-// 	expectedLo1 := uint64(10)
-// 	checkVecMul(t, x1, y1, expectedHi0, expectedHi1, expectedLo0, expectedLo1)
-
-// 	// Test case 2: Zero values
-// 	x2 := []uint64{0, 0}
-// 	y2 := []uint64{4, 5}
-// 	expectedHi0_2 := uint64(0)
-// 	expectedHi1_2 := uint64(0)
-// 	expectedLo0_2 := uint64(0)
-// 	expectedLo1_2 := uint64(0)
-// 	checkVecMul(t, x2, y2, expectedHi0_2, expectedHi1_2, expectedLo0_2, expectedLo1_2)
-
-// 	// Test case 3: Multiply by 1
-// 	x3 := []uint64{10, 20}
-// 	y3 := []uint64{1, 1}
-// 	expectedHi0_3 := uint64(0)
-// 	expectedHi1_3 := uint64(0)
-// 	expectedLo0_3 := uint64(10)
-// 	expectedLo1_3 := uint64(20)
-// 	checkVecMul(t, x3, y3, expectedHi0_3, expectedHi1_3, expectedLo0_3, expectedLo1_3)
-
-// 		// Test case 4: Multiply big integers
-// 		x4 := []uint64{18446744073709551615, 18446744073709551615}
-// 		y4 := []uint64{2, 3}
-// 		expectedHi0_4 := uint64(1)
-// 		expectedHi1_4 := uint64(2)
-// 		expectedLo0_4 := uint64(18446744073709551614)
-// 		expectedLo1_4 := uint64(18446744073709551613)
-// 		checkVecMul(t, x4, y4, expectedHi0_4, expectedHi1_4, expectedLo0_4, expectedLo1_4)
-// 	}
-
+/*
 func TestVecMulAligned(t *testing.T) {
 	// Test case 1: Small numbers
 	x := align32Uint64(2)
@@ -193,16 +240,19 @@ func TestVecMulAligned(t *testing.T) {
 	expectedLo1_4 := uint64(18446744073709551613)
 	checkVecMul(t, x, y, expectedHi0_4, expectedHi1_4, expectedLo0_4, expectedLo1_4)
 }
+*/
 
 // helper function to check VecMul results against expected values
-func checkVecMul(t *testing.T, x, y []uint64, expectedHi0, expectedHi1, expectedLo0, expectedLo1 uint64) {
-	hi0, hi1, lo0, lo1 := VecMul(x, y)
-	require.Equal(t, expectedHi0, hi0, "hi0 mismatch")
-	require.Equal(t, expectedHi1, hi1, "hi1 mismatch")
-	require.Equal(t, expectedLo0, lo0, "lo0 mismatch")
-	require.Equal(t, expectedLo1, lo1, "lo1 mismatch")
+func checkVecMul(t *testing.T, x, y [2]uint64, expectedHi0, expectedHi1, expectedLo0, expectedLo1 uint64) {
+	in := [8]uint64{x[0], x[1], y[0], y[1], 0, 0, 0, 0}
+	VecMul_AVX2_I64(&in)
+	require.Equal(t, expectedHi0, in[4], "hi0 mismatch")
+	require.Equal(t, expectedHi1, in[5], "hi1 mismatch")
+	require.Equal(t, expectedLo0, in[6], "lo0 mismatch")
+	require.Equal(t, expectedLo1, in[7], "lo1 mismatch")
 }
 
+/*
 func TestCriticalCarry(t *testing.T) {
 	hi_p0 := (uint64)(1)
 	lo_p0 := (uint64)(2)
@@ -215,18 +265,18 @@ func TestCriticalCarry(t *testing.T) {
 	e1 := (uint64)(3)
 	var res1, res2 uint64
 
-	sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei := VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-	_, _, c1, c2 := VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-	res1, res2, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+	sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei := VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+	_, _, c1, c2 := VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+	res1, res2, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 	if res1 != 0 && res2 != 3 {
 		t.Errorf("Error: expected final carries to be 0 and 2, got %d and %d", res1, res2)
 	}
 
 	// Temporary slices for VecAdd_AVX2_I64
-	vecX := make([]uint64, 2) // input1
-	vecY := make([]uint64, 2) // input2
-	vecZ := make([]uint64, 2) // carry/carryOut
-	vecU := make([]uint64, 2) // sum
+	var vecX [2]uint64 // input1
+	var vecY [2]uint64 // input2
+	var vecZ [2]uint64 // carry/carryOut
+	var vecU [2]uint64 // sum
 
 	// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
 	vecX[0], vecX[1] = t0, t1
@@ -252,6 +302,7 @@ func TestCriticalCarry(t *testing.T) {
 		t.Errorf("Error: expected final carries to be 0 and 2, got %d and %d", res1, res2)
 	}
 }
+*/
 
 func TestVecMontMul(t *testing.T) {
 	var x, y, z, expected Element

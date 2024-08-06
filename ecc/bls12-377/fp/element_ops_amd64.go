@@ -103,24 +103,21 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 }
 
 //go:noescape
-func VecAdd_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
+func VecAdd_AVX2_I64(in *[8]uint64)
 
 //go:noescape
-func VecMul_AVX2_I64(x []uint64, y []uint64, z []uint64, u []uint64)
+func VecMul_AVX2_I64(in *[8]uint64)
 
-func VecAdd(x, y, carry []uint64) (sum0, sum1, carry0, carry1 uint64) {
-	// fix size at 2
-	sum := make([]uint64, 2)
-	VecAdd_AVX2_I64(x, y, carry, sum)
-	return sum[0], sum[1], carry[0], carry[1]
-}
-func VecMul(x, y []uint64) (hi0, hi1, lo0, lo1 uint64) {
-	// fix size at 2
-	hi := make([]uint64, 2)
-	low := make([]uint64, 2)
-	VecMul_AVX2_I64(x, y, hi, low)
-	return hi[0], hi[1], low[0], low[1]
-}
+// func VecAdd(in [8]uint64) {
+// 	VecAdd_AVX2_I64(in)
+// }
+// func VecMul(x, y [2]uint64) (hi0, hi1, lo0, lo1 uint64) {
+// 	// fix size at 2
+// 	var hi [2]uint64
+// 	var low [2]uint64
+// 	VecMul_AVX2_I64(x, y, hi, low)
+// 	return hi[0], hi[1], low[0], low[1]
+// }
 
 func align32Uint64(n int) []uint64 {
 	// Allocate enough memory to ensure we can align within the slice
@@ -132,6 +129,7 @@ func align32Uint64(n int) []uint64 {
 	return alignedSlice
 }
 
+/*
 // Mul z = x * y (mod q)
 //
 // x and y must be less than q
@@ -223,38 +221,38 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		_, _, c1, c2 = VecAdd([]uint64{lo_aj_b0, lo_qm0}, []uint64{d0, e0}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{t0, t1}, []uint64{c1, c2}, []uint64{0, 0})
+		_, _, c1, c2 = VecAdd([2]uint64{lo_aj_b0, lo_qm0}, [2]uint64{d0, e0}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{t0, t1}, [2]uint64{c1, c2}, [2]uint64{0, 0})
 
 		// i = 1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[1], q1})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[1], q1})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[2], q2})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[2], q2})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d2, e2}, [2]uint64{0, 0})
+		d1, e1, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[3], q3})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[3], q3})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d3, e3}, [2]uint64{0, 0})
+		d2, e2, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[4], q4})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[4], q4})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d4, e4}, [2]uint64{0, 0})
+		d3, e3, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[5], q5})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[5], q5})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d5, e5}, [2]uint64{0, 0})
+		d4, e4, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -283,38 +281,38 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		_, _, c1, c2 = VecAdd([]uint64{lo_aj_b0, lo_qm0}, []uint64{d0, e0}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{t0, t1}, []uint64{c1, c2}, []uint64{0, 0})
+		_, _, c1, c2 = VecAdd([2]uint64{lo_aj_b0, lo_qm0}, [2]uint64{d0, e0}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{t0, t1}, [2]uint64{c1, c2}, [2]uint64{0, 0})
 
 		// i = 1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[1], q1})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[1], q1})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[2], q2})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[2], q2})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d2, e2}, [2]uint64{0, 0})
+		d1, e1, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[3], q3})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[3], q3})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d3, e3}, [2]uint64{0, 0})
+		d2, e2, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[4], q4})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[4], q4})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d4, e4}, [2]uint64{0, 0})
+		d3, e3, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[5], q5})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[5], q5})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d5, e5}, [2]uint64{0, 0})
+		d4, e4, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -343,38 +341,38 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		_, _, c1, c2 = VecAdd([]uint64{lo_aj_b0, lo_qm0}, []uint64{d0, e0}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{t0, t1}, []uint64{c1, c2}, []uint64{0, 0})
+		_, _, c1, c2 = VecAdd([2]uint64{lo_aj_b0, lo_qm0}, [2]uint64{d0, e0}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{t0, t1}, [2]uint64{c1, c2}, [2]uint64{0, 0})
 
 		// i = 1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[1], q1})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[1], q1})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[2], q2})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[2], q2})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d2, e2}, [2]uint64{0, 0})
+		d1, e1, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[3], q3})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[3], q3})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d3, e3}, [2]uint64{0, 0})
+		d2, e2, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[4], q4})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[4], q4})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d4, e4}, [2]uint64{0, 0})
+		d3, e3, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[5], q5})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[5], q5})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d5, e5}, [2]uint64{0, 0})
+		d4, e4, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -403,38 +401,38 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		_, _, c1, c2 = VecAdd([]uint64{lo_aj_b0, lo_qm0}, []uint64{d0, e0}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{t0, t1}, []uint64{c1, c2}, []uint64{0, 0})
+		_, _, c1, c2 = VecAdd([2]uint64{lo_aj_b0, lo_qm0}, [2]uint64{d0, e0}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{t0, t1}, [2]uint64{c1, c2}, [2]uint64{0, 0})
 
 		// i = 1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[1], q1})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[1], q1})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[2], q2})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[2], q2})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d2, e2}, [2]uint64{0, 0})
+		d1, e1, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[3], q3})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[3], q3})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d3, e3}, [2]uint64{0, 0})
+		d2, e2, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[4], q4})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[4], q4})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d4, e4}, [2]uint64{0, 0})
+		d3, e3, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[5], q5})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[5], q5})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d5, e5}, [2]uint64{0, 0})
+		d4, e4, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -463,38 +461,38 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		_, _, c1, c2 = VecAdd([]uint64{lo_aj_b0, lo_qm0}, []uint64{d0, e0}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{t0, t1}, []uint64{c1, c2}, []uint64{0, 0})
+		_, _, c1, c2 = VecAdd([2]uint64{lo_aj_b0, lo_qm0}, [2]uint64{d0, e0}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{t0, t1}, [2]uint64{c1, c2}, [2]uint64{0, 0})
 
 		// i = 1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[1], q1})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[1], q1})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[2], q2})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[2], q2})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d2, e2}, [2]uint64{0, 0})
+		d1, e1, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[3], q3})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[3], q3})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d3, e3}, [2]uint64{0, 0})
+		d2, e2, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[4], q4})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[4], q4})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d4, e4}, [2]uint64{0, 0})
+		d3, e3, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[5], q5})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[5], q5})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d5, e5}, [2]uint64{0, 0})
+		d4, e4, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -523,38 +521,38 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		_, _, c1, c2 = VecAdd([]uint64{lo_aj_b0, lo_qm0}, []uint64{d0, e0}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{t0, t1}, []uint64{c1, c2}, []uint64{0, 0})
+		_, _, c1, c2 = VecAdd([2]uint64{lo_aj_b0, lo_qm0}, [2]uint64{d0, e0}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{t0, t1}, [2]uint64{c1, c2}, [2]uint64{0, 0})
 
 		// i = 1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[1], q1})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[1], q1})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[2], q2})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[2], q2})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d2, e2}, [2]uint64{0, 0})
+		d1, e1, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[3], q3})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[3], q3})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d3, e3}, [2]uint64{0, 0})
+		d2, e2, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[4], q4})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[4], q4})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d4, e4}, [2]uint64{0, 0})
+		d3, e3, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// i = 5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([]uint64{aj, q}, []uint64{y[5], q5})
-		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
+		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul([2]uint64{aj, q}, [2]uint64{y[5], q5})
+		sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d5, e5}, [2]uint64{0, 0})
+		d4, e4, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -580,6 +578,8 @@ func (c *Element) Mulv1(x, y *Element) *Element {
 	}
 	return c
 }
+*/
+
 
 func (c *Element) Mul(x, y *Element) *Element {
 	// Implements a parallel radix-2^64 interleaved Montgomery multiplication algorithm
@@ -645,19 +645,16 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// di = 0, ei = 0 for 0 <= i < n, where n is 6 in the case of fp
 	var d0, d1, d2, d3, d4, d5 uint64
 	var e0, e1, e2, e3, e4, e5 uint64
-	// vecX := align32Uint64(2) // input1
-	// vecY := align32Uint64(2) // input2
-	// vecZ := align32Uint64(2) // carry/carryOut
-	// vecU := align32Uint64(2) // sum
-	// vecajq := align32Uint64(2) // {aj, q}
-	// vecTemp := align32Uint64(2) // {y[i], qi}
-	vecX := make([]uint64, 2) // input1
-	vecY := make([]uint64, 2) // input2
-	vecZ := make([]uint64, 2) // carry/carryOut
-	vecU := make([]uint64, 2) // sum
-	vecajq := make([]uint64, 2) // {aj, q}
-	vecTemp := make([]uint64, 2) // {y[i], qi}
-
+	vecAdd := [8]uint64{}
+	// [0, 1] = x1, x2
+	// [2, 3] = y1, y2
+	// [4, 5] = c1, c2
+	// [6, 7] = s1, s2
+	vecMul := [8]uint64{}
+	// [0, 1] = x1, x2
+	// [2, 3] = y1, y2
+	// [4, 5] = hi1, hi2
+	// [6, 7] = lo1, lo2
 	{
 		// first iteration -> j=0
 		var t0, t1 uint64
@@ -678,153 +675,156 @@ func (c *Element) Mul(x, y *Element) *Element {
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
-			// Temporary slices for VecAdd_AVX2_I64
-		// vecX := make([]uint64, 2) // input1
-
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		vecX[0] = lo_aj_b0
-		vecX[1] = lo_qm0
-		vecY[0] = d0
-		vecY[1] = e0
-		vecZ[0] = 0
-		vecZ[1] = 0
-		_, _, c1, c2 = VecAdd(vecX, vecY, vecZ)
-		vecX[0] = t0
-		vecX[1] = t1
-		vecY[0] = c1
-		vecY[1] = c2
-		vecZ[0] = 0
-		vecZ[1] = 0
-		t0, t1, _, _ = VecAdd(vecX, vecY, vecZ)
+		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
+		vecAdd[2], vecAdd[3] = d0, e0
+		VecAdd_AVX2_I64(&vecAdd)
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
-		vecajq[0] = aj
-		vecajq[1] = q
-		vecTemp[0] = y[1]
-		vecTemp[1] = q1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d1, e1
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d0, e0 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[1], q1 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
-		vecTemp[0] = y[2]
-		vecTemp[1] = q2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d2, e2
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d1, e1 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[2], q2 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d2, e2 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d1, e1 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
-		vecTemp[0] = y[3]
-		vecTemp[1] = q3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d3, e3
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d2, e2 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[3], q3 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 4
-		vecTemp[0] = y[4]
-		vecTemp[1] = q4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d4, e4
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d3, e3 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[4], q4 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d4, e4 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d3, e3 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 5
-		vecTemp[0] = y[5]
-		vecTemp[1] = q5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d5, e5
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d4, e4 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[5], q5 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d5, e5 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d4, e4 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -832,15 +832,12 @@ func (c *Element) Mul(x, y *Element) *Element {
 	}
 
 	{
-		// second iteration -> j=1
+		// first iteration -> j=0
 		var t0, t1 uint64
 		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
 		var lo_qm0 uint64 // temp vars for i = 0
 		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
 		var c1, c2 uint64
-
-		// Temporary slices for VecAdd_AVX2_I64
-		// vecX := make([]uint64, 2) // input1
 
 		aj := x[1] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -850,155 +847,160 @@ func (c *Element) Mul(x, y *Element) *Element {
 		diff_d0_e0, _ = bits.Sub64(d0, e0, 0)
 		// To avoid repeated computation of ajb0, we directly assign to t0 (Computation 1)
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
-		t0, lo_aj_b0 = bits.Mul64(aj, b0)
+		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		vecX[0] = lo_aj_b0
-		vecX[1] = lo_qm0
-		vecY[0] = d0
-		vecY[1] = e0
-		vecZ[0] = 0
-		vecZ[1] = 0
-		_, _, c1, c2 = VecAdd(vecX, vecY, vecZ)
-
-		vecX[0] = t0
-		vecX[1] = t1
-		vecY[0] = c1
-		vecY[1] = c2
-		vecZ[0] = 0
-		vecZ[1] = 0
-		t0, t1, _, _ = VecAdd(vecX, vecY, vecZ)
+		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
+		vecAdd[2], vecAdd[3] = d0, e0
+		VecAdd_AVX2_I64(&vecAdd)
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
-		vecajq[0] = aj
-		vecajq[1] = q
-		vecTemp[0] = y[1]
-		vecTemp[1] = q1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d1, e1
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d0, e0 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[1], q1 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
-		vecTemp[0] = y[2]
-		vecTemp[1] = q2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d2, e2
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d1, e1 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[2], q2 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d2, e2 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d1, e1 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
-		vecTemp[0] = y[3]
-		vecTemp[1] = q3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d3, e3
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d2, e2 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[3], q3 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 4
-		vecTemp[0] = y[4]
-		vecTemp[1] = q4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d4, e4
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d3, e3 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[4], q4 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d4, e4 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d3, e3 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 5
-		vecTemp[0] = y[5]
-		vecTemp[1] = q5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d5, e5
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d4, e4 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[5], q5 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d5, e5 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d4, e4 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -1006,7 +1008,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 	}
 
 	{
-		// third iteration -> j=2
+		// first iteration -> j=0
 		var t0, t1 uint64
 		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
 		var lo_qm0 uint64 // temp vars for i = 0
@@ -1023,155 +1025,158 @@ func (c *Element) Mul(x, y *Element) *Element {
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
 		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
-		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0)
-
-		// Temporary slices for VecAdd_AVX2_I64
-		// vecX := make([]uint64, 2) // input1
+		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		vecX[0] = lo_aj_b0
-		vecX[1] = lo_qm0
-		vecY[0] = d0
-		vecY[1] = e0
-		vecZ[0] = 0
-		vecZ[1] = 0
-		_, _, c1, c2 = VecAdd(vecX, vecY, vecZ)
-		vecX[0] = t0
-		vecX[1] = t1
-		vecY[0] = c1
-		vecY[1] = c2
-		vecZ[0] = 0
-		vecZ[1] = 0
-		t0, t1, _, _ = VecAdd(vecX, vecY, vecZ)
+		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
+		vecAdd[2], vecAdd[3] = d0, e0
+		VecAdd_AVX2_I64(&vecAdd)
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
-		vecajq[0] = aj
-		vecajq[1] = q
-		vecTemp[0] = y[1]
-		vecTemp[1] = q1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d1, e1
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d0, e0 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[1], q1 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
-		vecTemp[0] = y[2]
-		vecTemp[1] = q2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d2, e2
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d1, e1 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[2], q2 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d2, e2 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d1, e1 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
-		vecTemp[0] = y[3]
-		vecTemp[1] = q3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d3, e3
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d2, e2 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[3], q3 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 4
-		vecTemp[0] = y[4]
-		vecTemp[1] = q4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d4, e4
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d3, e3 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[4], q4 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d4, e4 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d3, e3 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 5
-		vecTemp[0] = y[5]
-		vecTemp[1] = q5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d5, e5
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d4, e4 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[5], q5 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d5, e5 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d4, e4 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -1185,9 +1190,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 		var lo_qm0 uint64 // temp vars for i = 0
 		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
 		var c1, c2 uint64
-
-		// Temporary slices for VecAdd_AVX2_I64
-		// vecX := make([]uint64, 2) // input1
 
 		aj := x[3] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -1203,148 +1205,154 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		vecX[0] = lo_aj_b0
-		vecX[1] = lo_qm0
-		vecY[0] = d0
-		vecY[1] = e0
-		vecZ[0] = 0
-		vecZ[1] = 0
-		_, _, c1, c2 = VecAdd(vecX, vecY, vecZ)
-		vecX[0] = t0
-		vecX[1] = t1
-		vecY[0] = c1
-		vecY[1] = c2
-		vecZ[0] = 0
-		vecZ[1] = 0
-		t0, t1, _, _ = VecAdd(vecX, vecY, vecZ)
+		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
+		vecAdd[2], vecAdd[3] = d0, e0
+		VecAdd_AVX2_I64(&vecAdd)
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
-		vecajq[0] = aj
-		vecajq[1] = q
-		vecTemp[0] = y[1]
-		vecTemp[1] = q1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d1, e1
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d0, e0 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[1], q1 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
-		vecTemp[0] = y[2]
-		vecTemp[1] = q2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d2, e2
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d1, e1 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[2], q2 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d2, e2 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d1, e1 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
-		vecTemp[0] = y[3]
-		vecTemp[1] = q3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d3, e3
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d2, e2 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[3], q3 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 4
-		vecTemp[0] = y[4]
-		vecTemp[1] = q4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d4, e4
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d3, e3 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[4], q4 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d4, e4 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d3, e3 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 5
-		vecTemp[0] = y[5]
-		vecTemp[1] = q5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d5, e5
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d4, e4 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[5], q5 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d5, e5 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d4, e4 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -1358,9 +1366,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 		var lo_qm0 uint64 // temp vars for i = 0
 		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
 		var c1, c2 uint64
-
-		// Temporary slices for VecAdd_AVX2_I64
-		// vecX := make([]uint64, 2) // input1
 
 		aj := x[4] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -1376,148 +1381,154 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		vecX[0] = lo_aj_b0
-		vecX[1] = lo_qm0
-		vecY[0] = d0
-		vecY[1] = e0
-		vecZ[0] = 0
-		vecZ[1] = 0
-		_, _, c1, c2 = VecAdd(vecX, vecY, vecZ)
-		vecX[0] = t0
-		vecX[1] = t1
-		vecY[0] = c1
-		vecY[1] = c2
-		vecZ[0] = 0
-		vecZ[1] = 0
-		t0, t1, _, _ = VecAdd(vecX, vecY, vecZ)
+		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
+		vecAdd[2], vecAdd[3] = d0, e0
+		VecAdd_AVX2_I64(&vecAdd)
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
-		vecajq[0] = aj
-		vecajq[1] = q
-		vecTemp[0] = y[1]
-		vecTemp[1] = q1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d1, e1
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d0, e0 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[1], q1 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
-		vecTemp[0] = y[2]
-		vecTemp[1] = q2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d2, e2
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d1, e1 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[2], q2 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d2, e2 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d1, e1 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
-		vecTemp[0] = y[3]
-		vecTemp[1] = q3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d3, e3
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d2, e2 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[3], q3 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 4
-		vecTemp[0] = y[4]
-		vecTemp[1] = q4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d4, e4
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d3, e3 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[4], q4 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d4, e4 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d3, e3 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 5
-		vecTemp[0] = y[5]
-		vecTemp[1] = q5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d5, e5
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d4, e4 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[5], q5 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d5, e5 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d4, e4 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
@@ -1531,9 +1542,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 		var lo_qm0 uint64 // temp vars for i = 0
 		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
 		var c1, c2 uint64
-
-		// Temporary slices for VecAdd_AVX2_I64
-		// vecX := make([]uint64, 2) // input1
 
 		aj := x[5] // x[j] for the j-th iteration
 		b0 := y[0]
@@ -1549,148 +1557,154 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 		// i = 0 - this precedes the for loop
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
-		vecX[0] = lo_aj_b0
-		vecX[1] = lo_qm0
-		vecY[0] = d0
-		vecY[1] = e0
-		vecZ[0] = 0
-		vecZ[1] = 0
-		_, _, c1, c2 = VecAdd(vecX, vecY, vecZ)
-		vecX[0] = t0
-		vecX[1] = t1
-		vecY[0] = c1
-		vecY[1] = c2
-		vecZ[0] = 0
-		vecZ[1] = 0
-		t0, t1, _, _ = VecAdd(vecX, vecY, vecZ)
+		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
+		vecAdd[2], vecAdd[3] = d0, e0
+		VecAdd_AVX2_I64(&vecAdd)
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
-		vecajq[0] = aj
-		vecajq[1] = q
-		vecTemp[0] = y[1]
-		vecTemp[1] = q1
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d1, e1}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d1, e1
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d0, e0, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d0, e0 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[1], q1 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
-		vecTemp[0] = y[2]
-		vecTemp[1] = q2
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d2, e2}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d2, e2
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d1, e1, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d1, e1 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[2], q2 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d2, e2 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d1, e1 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
-		vecTemp[0] = y[3]
-		vecTemp[1] = q3
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d3, e3}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d3, e3
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d2, e2, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d2, e2 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[3], q3 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d1, e1 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d0, e0 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 4
-		vecTemp[0] = y[4]
-		vecTemp[1] = q4
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d4, e4}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d4, e4
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d3, e3, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d3, e3 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[4], q4 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d4, e4 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d3, e3 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 5
-		vecTemp[0] = y[5]
-		vecTemp[1] = q5
-		hi_p0, hi_p1, lo_p0, lo_p1 = VecMul(vecajq, vecTemp)
-		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([]uint64{t0, t1}, []uint64{d5, e5}, []uint64{0, 0})
-		vecX[0], vecX[1] = t0, t1
-		vecY[0], vecY[1] = d5, e5
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		sum_t0_di, sum_t1_ei = vecU[0], vecU[1]
-		c_t0_di, c_t1_ei = vecZ[0], vecZ[1]
-		// d4, e4, c1, c2 = VecAdd([]uint64{lo_p0, lo_p1}, []uint64{sum_t0_di, sum_t1_ei}, []uint64{0, 0})
-		vecX[0], vecX[1] = lo_p0, lo_p1
-		vecY[0], vecY[1] = sum_t0_di, sum_t1_ei
-		vecZ[0], vecZ[1] = 0, 0
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		d4, e4 = vecU[0], vecU[1]
-		c1, c2 = vecZ[0], vecZ[1]
-		// t0, t1, _, _ = VecAdd([]uint64{hi_p0, hi_p1}, []uint64{c1, c2}, []uint64{c_t0_di, c_t1_ei})
-		vecX[0], vecX[1] = hi_p0, hi_p1
-		vecY[0], vecY[1] = c1, c2
-		vecZ[0], vecZ[1] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(vecX, vecY, vecZ, vecU)
-		t0, t1 = vecU[0], vecU[1]
+		vecMul[0], vecMul[1] = aj, q
+		vecMul[2], vecMul[3] = y[5], q5 // modify
+		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
+		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = t0, t1
+		vecAdd[2], vecAdd[3] = d5, e5 // modify
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
+		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
+
+		// d0, e0, c1, c2 = VecAdd([2]uint64{lo_p0, lo_p1}, [2]uint64{sum_t0_di, sum_t1_ei}, [2]uint64{0, 0})
+		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
+		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
+		vecAdd[4], vecAdd[5] = 0, 0
+		VecAdd_AVX2_I64(&vecAdd)
+		d4, e4 = vecAdd[6], vecAdd[7] // modify
+		c1, c2 = vecAdd[4], vecAdd[5]
+		
+		// t0, t1, _, _ = VecAdd([2]uint64{hi_p0, hi_p1}, [2]uint64{c1, c2}, [2]uint64{c_t0_di, c_t1_ei})
+		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
+		vecAdd[2], vecAdd[3] = c1, c2
+		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
+		VecAdd_AVX2_I64(&vecAdd)
+		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
 		d5 = t0
