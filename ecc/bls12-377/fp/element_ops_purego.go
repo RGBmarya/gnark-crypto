@@ -72,14 +72,6 @@ func VecMul_AVX2_I64(in *[8]uint64) {
 	panic(("not implemented"))
 }
 
-// func VecAdd(x, y, carry [2]uint64) (sum0, sum1, carry0, carry1 uint64) {
-// 	panic("not implemented")
-// }
-
-// func VecMul(x, y [2]uint64) (hi0, hi1, lo0, lo1 uint64) {
-// 	panic("not implemented")
-// }
-
 // Mul z = x * y (mod q)
 //
 // x and y must be less than q
@@ -442,21 +434,6 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 	return z
 }
 
-/*
-func align32Uint64(n int) []uint64 {
-	// Allocate enough memory to ensure we can align within the slice
-	buf := make([]uint64, n+4) // +4 to ensure we have extra space for alignment
-	addr := uintptr(unsafe.Pointer(&buf[0]))
-	alignedAddr := (addr + 31) &^ 31
-	offset := int((alignedAddr - addr) / unsafe.Sizeof(buf[0]))
-	alignedSlice := buf[offset : offset+n]
-	return alignedSlice
-}
-
-func (z *Element) Mulv1(x, y *Element) *Element {
-	panic("Not implemented")
-}
-*/
 func (z *Element) Mul(x, y *Element) *Element {
 	panic("Not implemented")
 }
