@@ -169,8 +169,6 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// improving the efficiency of Montgomery multiplication on modern 64-bit architectures.
 
 	// di = 0, ei = 0 for 0 <= i < n, where n is 6 in the case of fp
-	var d0, d1, d2, d3, d4, d5 uint64
-	var e0, e1, e2, e3, e4, e5 uint64
 	vecAdd := [8]uint64{}
 	// [0, 1] = x1, x2
 	// [2, 3] = y1, y2
@@ -181,6 +179,8 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// [2, 3] = y1, y2
 	// [4, 5] = hi1, hi2
 	// [6, 7] = lo1, lo2
+	var d0, d1, d2, d3, d4, d5 uint64
+	var e0, e1, e2, e3, e4, e5 uint64
 	{
 		// first iteration -> j=0
 		var t0, t1 uint64
