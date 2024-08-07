@@ -181,23 +181,20 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// [2, 3] = y1, y2
 	// [4, 5] = hi1, hi2
 	// [6, 7] = lo1, lo2
+	var t0, t1 uint64
+	var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
+	var lo_qm0 uint64 // temp vars for i = 0
+	var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
+	var c1, c2 uint64
 	{
 		// first iteration -> j=0
-		var t0, t1 uint64
-		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
-		var lo_qm0 uint64 // temp vars for i = 0
-		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
-		var c1, c2 uint64
-
 		aj := x[0] // x[j] for the j-th iteration
-		b0 := y[0]
-
 		// Calculating q
 		// This is q is NOT the field modulus; q stores the intermediate value from Computation 2
 		diff_d0_e0, _ = bits.Sub64(d0, e0, 0)
 		// To avoid repeated computation of ajb0, we directly assign to t0 (Computation 1)
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
-		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
+		t0, lo_aj_b0 = bits.Mul64(aj, y[0]) 
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
@@ -303,21 +300,14 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 	{
 		// second iteration -> j=1
-		var t0, t1 uint64
-		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
-		var lo_qm0 uint64 // temp vars for i = 0
-		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
-		var c1, c2 uint64
-
 		aj := x[1] // x[j] for the j-th iteration
-		b0 := y[0]
 
 		// Calculating q
 		// This is q is NOT the field modulus; q stores the intermediate value from Computation 2
 		diff_d0_e0, _ = bits.Sub64(d0, e0, 0)
 		// To avoid repeated computation of ajb0, we directly assign to t0 (Computation 1)
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
-		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
+		t0, lo_aj_b0 = bits.Mul64(aj, y[0]) 
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
@@ -424,21 +414,14 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 	{
 		// third iteration -> j=2
-		var t0, t1 uint64
-		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
-		var lo_qm0 uint64 // temp vars for i = 0
-		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
-		var c1, c2 uint64
-
 		aj := x[2] // x[j] for the j-th iteration
-		b0 := y[0]
 
 		// Calculating q
 		// This is q is NOT the field modulus; q stores the intermediate value from Computation 2
 		diff_d0_e0, _ = bits.Sub64(d0, e0, 0)
 		// To avoid repeated computation of ajb0, we directly assign to t0 (Computation 1)
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
-		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
+		t0, lo_aj_b0 = bits.Mul64(aj, y[0]) 
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
@@ -545,21 +528,14 @@ func (c *Element) Mul(x, y *Element) *Element {
 
 	{
 		// fourth iteration -> j=3
-		var t0, t1 uint64
-		var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
-		var lo_qm0 uint64 // temp vars for i = 0
-		var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
-		var c1, c2 uint64
-
 		aj := x[3] // x[j] for the j-th iteration
-		b0 := y[0]
-
+		
 		// Calculating q
 		// This is q is NOT the field modulus; q stores the intermediate value from Computation 2
 		diff_d0_e0, _ = bits.Sub64(d0, e0, 0)
 		// To avoid repeated computation of ajb0, we directly assign to t0 (Computation 1)
 		// We operate on the lower 64 bits of q; mod(2^64) means we can ignore the upper 64 bits
-		t0, lo_aj_b0 = bits.Mul64(aj, b0) 
+		t0, lo_aj_b0 = bits.Mul64(aj, y[0]) 
 		sum_lo_ajb0_diff_d0e0, _ = bits.Add64(lo_aj_b0, diff_d0_e0, 0)
 		_, q := bits.Mul64(qInv, sum_lo_ajb0_diff_d0e0) 
 
