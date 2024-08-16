@@ -9,3 +9,23 @@ The new implementation for montgomery Modular multiplication `MUL` can be found 
 ## Fork Information
 
 This repository was forked from [https://github.com/Consensys/gnark-crypto/tree/master](https://github.com/Consensys/gnark-crypto/tree/master). `gnark-crypto` provides elliptic curve and pairing-based cryptography on BN, BLS12, BLS24, and BW6 curves. It also provides various algorithms (algebra, crypto) of particular interest to zero knowledge proof systems.
+
+## Getting Started
+### Install modified gnark-crypto
+
+```bash
+go get https://github.com/RGBmarya/gnark-crypto
+```
+## Running MSM Benchmarks
+To benchmark the new implementation for montgomery Modular multiplication `MUL` run:
+
+```bash
+cd ecc/bls12-377
+go test -bench=BenchmarkMultiExpG1 -cpu 16,32,64,128
+```
+To plot benchmark results for the new implementation run:
+
+```bash
+cd ecc/bls12-377/plots
+python plot.py
+```
