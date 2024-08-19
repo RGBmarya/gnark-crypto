@@ -20,7 +20,10 @@
 package fr
 
 import (
+	"log"
 	"math/bits"
+	"runtime"
+	"unsafe"
 )
 
 //go:noescape
@@ -103,9 +106,75 @@ func (z *Element) MulCIOS(x, y *Element) *Element {
 
 //go:noescape
 func VecAdd_AVX2_I64(in *[8]uint64)
+// VecAdd_AVX2_I64 performs vector addition of unsigned 64-bit integer elements stored in the input array.
+// VecAdd_AVX2_I64 returns the sum with carry of:
+// in[0], in[2], and in[4]: in[6] = in[0] + in[2] + in[4].
+// in[1], in[3], and in[5]: in[7] = in[1] + in[3] + in[5].
+// The carry inputs in[4] and in[5] must be 0 or 1; otherwise the behavior is undefined.
+//
+// `in` is expected to have exactly 8 unsigned 64-bit integers.
+// The first six elements (in[0] to in[5]) are used as inputs.
+// The results are written to elements in[4] to in[7].
+// Specifically:
+// - in[0] and in[1] store the left operands 
+// - in[2] and in[3] store the right operands
+// - in[4] and in[5] store carry inputs for sum of in[0] and in[2] and sum of in[1] and in[3], respectively
+//   and are overwritten with the carry outputs for the sum of in[0] and in[2] and sum of in[1] and in[3]
+// - in[6] stores the sum of in[0], in[2], and in[4].
+// - in[7] stores the sum of in[1], in[3], and in[5].
 
 //go:noescape
 func VecMul_AVX2_I64(in *[8]uint64)
+// VecMul_AVX2_I64 returns the 128-bit product of:
+// - in[0] and in[2]: (in[4], in[6]) = in[0] * in[2]
+// - in[1] and in[3]: (in[5], in[7]) = in[1] * in[3]
+// with the product bits' upper half returned in in[4] and in[5], respectively, 
+// and the lower half returned in in[6] and in[7], respectively.
+//
+// `in` is expected to have exactly 8 unsigned 64-bit integers.
+// The first four elements (in[0] to in[3]) are used as inputs.
+// The results are written to elements in[4] to in[7].
+// Specifically:
+// - in[4] stores the high part of the product of in[0] and in[2].
+// - in[5] stores the high part of the product of in[1] and in[3].
+// - in[6] stores the low part of the product of in[0] and in[2].
+// - in[7] stores the low part of the product of in[1] and in[3].
+
+
+// isAligned checks if the array `vec` is 64-byte aligned and whether the first 
+// and last elements of the array are in the same cache line.
+func isAligned(vec *[8]uint64) {
+	log.Printf("Address of array pointed to by vec inside isAligned: %p\n", vec)
+
+	// Check if the array is 64-byte aligned
+	if uintptr(unsafe.Pointer(vec))%64 == 0 {
+		log.Println("aligned")
+	} else {
+		log.Println("unaligned")
+	}
+
+	// Cache line size (typically 64 bytes)
+	const cacheLineSize = 64
+
+	// Calculate the cache line index for vec[0] and vec[2]
+	baseAddr := uintptr(unsafe.Pointer(&vec[0]))
+	offsetAddr := uintptr(unsafe.Pointer(&vec[7]))
+
+	baseCacheLine := baseAddr &^ (cacheLineSize - 1)
+	offsetCacheLine := offsetAddr &^ (cacheLineSize - 1)
+
+	// Check if both addresses are in the same cache line
+	if baseCacheLine == offsetCacheLine {
+		log.Println("vec[0] and vec[7] are in the same cache line.")
+	} else {
+		log.Println("vec[0] and vec[7] are in different cache lines.")
+	}
+
+	log.Printf("vec[0]:%p, vec[7]:%p", &vec[0], &vec[7])
+	log.Println()
+	log.Println()
+}
+
 
 func (c *Element) Mul(x, y *Element) *Element {
 	// Implements a parallel radix-2^64 interleaved Montgomery multiplication algorithm
@@ -168,24 +237,43 @@ func (c *Element) Mul(x, y *Element) *Element {
 	// This approach leverages SIMD vector instruction units to parallelize operations,
 	// improving the efficiency of Montgomery multiplication on modern 64-bit architectures.
 
-	// di = 0, ei = 0 for 0 <= i < n, where n is 4 in the case of fr
-	var d0, d1, d2, d3 uint64
-	var e0, e1, e2, e3 uint64
-	vecAdd := [8]uint64{}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	
+	const cacheLineSize = 64 // Typical cache line size 
+	const size8 = cacheLineSize+unsafe.Sizeof([8]uint64{})
+	const size6 = cacheLineSize+unsafe.Sizeof([6]uint64{})
+	// Create a byte slice with extra space to allow for alignment 
+	rawData1 := [size8]byte{}
+	rawData2 := [size8]byte{}
+	// Align the data to the cache line size 
+	dataPtr1 := uintptr(unsafe.Pointer(&rawData1[0])) 
+	dataPtr2 := uintptr(unsafe.Pointer(&rawData2[0])) 
+	// Get the address of the first byte 
+	dataPtr1 = (dataPtr1 + uintptr(cacheLineSize-1)) & ^(uintptr(cacheLineSize) - 1) 
+	dataPtr2 = (dataPtr2 + uintptr(cacheLineSize-1)) & ^(uintptr(cacheLineSize) - 1)
+	
+	vecAdd := (*[8]uint64)(unsafe.Pointer(dataPtr1)) 
 	// [0, 1] = x1, x2
 	// [2, 3] = y1, y2
 	// [4, 5] = c1, c2
 	// [6, 7] = s1, s2
-	vecMul := [8]uint64{}
+	vecMul := (*[8]uint64)(unsafe.Pointer(dataPtr2))
 	// [0, 1] = x1, x2
 	// [2, 3] = y1, y2
 	// [4, 5] = hi1, hi2
 	// [6, 7] = lo1, lo2
+	// di = 0, ei = 0 for 0 <= i < n, where n is 6 in the case of fp
+	var d0, d1, d2, d3 uint64
+	var e0, e1, e2, e3 uint64
+	// d := (*[6]uint64)(unsafe.Pointer(dataPtr3))
+	// e := (*[6]uint64)(unsafe.Pointer(dataPtr4))
 	var t0, t1 uint64
-	var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temp vars for calculating q
-	var lo_qm0 uint64 // temp vars for i = 0
-	var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temp vars for i = 1 ... (n - 1)
+	var diff_d0_e0, lo_aj_b0, sum_lo_ajb0_diff_d0e0 uint64 // temporary variables for calculating q
+	var lo_qm0 uint64 // temporary variables for i = 0
+	var hi_p0, hi_p1, lo_p0, lo_p1, sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei uint64 // temporary variables for i = 1 ... (n - 1)
 	var c1, c2 uint64
+
 	{
 		// first iteration -> j=0
 		aj := x[0] // x[j] for the j-th iteration
@@ -202,23 +290,23 @@ func (c *Element) Mul(x, y *Element) *Element {
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
 		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
 		vecAdd[2], vecAdd[3] = d0, e0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[1], q1 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d1, e1 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -226,7 +314,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d0, e0 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -234,19 +322,19 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 2
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[2], q2 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d2, e2 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -254,7 +342,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d1, e1 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -262,19 +350,19 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[3], q3 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d3, e3 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -282,7 +370,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d2, e2 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -290,7 +378,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
@@ -315,23 +403,23 @@ func (c *Element) Mul(x, y *Element) *Element {
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
 		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
 		vecAdd[2], vecAdd[3] = d0, e0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[1], q1 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d1, e1 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -339,7 +427,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d0, e0 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -347,20 +435,20 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[2], q2 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d2, e2 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -368,7 +456,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d1, e1 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -376,19 +464,19 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[3], q3 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d3, e3 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -396,7 +484,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d2, e2 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -404,7 +492,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
@@ -429,23 +517,23 @@ func (c *Element) Mul(x, y *Element) *Element {
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
 		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
 		vecAdd[2], vecAdd[3] = d0, e0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[1], q1 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d1, e1 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -453,7 +541,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d0, e0 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -461,20 +549,20 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[2], q2 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d2, e2 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -482,7 +570,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d1, e1 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -490,19 +578,19 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[3], q3 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d3, e3 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -510,7 +598,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d2, e2 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -518,7 +606,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
@@ -543,23 +631,23 @@ func (c *Element) Mul(x, y *Element) *Element {
 		t1, lo_qm0 = bits.Mul64(q, q0) //m_i in Algorithm 4 is qi here
 		vecAdd[0], vecAdd[1] = lo_aj_b0, lo_qm0
 		vecAdd[2], vecAdd[3] = d0, e0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = vecAdd[4], vecAdd[5]
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 1
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[1], q1 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d1, e1 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -567,7 +655,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d0, e0 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -575,20 +663,20 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 
 		// i = 2
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[2], q2 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d2, e2 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -596,7 +684,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d1, e1 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -604,19 +692,19 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// i = 3
 		vecMul[0], vecMul[1] = aj, q
 		vecMul[2], vecMul[3] = y[3], q3 // modify
-		VecMul_AVX2_I64(&vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
+		VecMul_AVX2_I64(vecMul) // hi_p0, hi_p1, lo_p0, lo_p1
 		hi_p0, hi_p1, lo_p0, lo_p1 = vecMul[4], vecMul[5], vecMul[6], vecMul[7]
 		// sum_t0_di, sum_t1_ei, c_t0_di, c_t1_ei = VecAdd([2]uint64{t0, t1}, [2]uint64{d1, e1}, [2]uint64{0, 0})
 		vecAdd[0], vecAdd[1] = t0, t1
 		vecAdd[2], vecAdd[3] = d3, e3 // modify
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		sum_t0_di, sum_t1_ei = vecAdd[6], vecAdd[7]
 		c_t0_di, c_t1_ei = vecAdd[4], vecAdd[5]
 
@@ -624,7 +712,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = lo_p0, lo_p1
 		vecAdd[2], vecAdd[3] = sum_t0_di, sum_t1_ei
 		vecAdd[4], vecAdd[5] = 0, 0
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		d2, e2 = vecAdd[6], vecAdd[7] // modify
 		c1, c2 = vecAdd[4], vecAdd[5]
 		
@@ -632,7 +720,7 @@ func (c *Element) Mul(x, y *Element) *Element {
 		vecAdd[0], vecAdd[1] = hi_p0, hi_p1
 		vecAdd[2], vecAdd[3] = c1, c2
 		vecAdd[4], vecAdd[5] = c_t0_di, c_t1_ei
-		VecAdd_AVX2_I64(&vecAdd)
+		VecAdd_AVX2_I64(vecAdd)
 		t0, t1 = vecAdd[6], vecAdd[7]
 
 		// Final assignment after for loop with index i ends
