@@ -16,6 +16,7 @@ package bls12377
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-377/fp"
 	"github.com/consensys/gnark-crypto/ecc/bls12-377/internal/fptower"
@@ -112,6 +113,11 @@ func FinalExponentiation(z *GT, _z ...*GT) GT {
 
 // MillerLoop computes the multi-Miller loop
 // ∏ᵢ MillerLoop(Pᵢ, Qᵢ) = ∏ᵢ { fᵢ_{x,Qᵢ}(Pᵢ) }
+
+//A part of the algorithm is to verify that the outputs of MillerLoop and
+//MillerLoopFixedQ are consistent, ensuring that the pairing is deterministic. Since MillerLoop and
+//MillerLoopFixedQ operate independently of each other, there is an opportunity to parallelize these
+
 func MillerLoop(P []G1Affine, Q []G2Affine) (GT, error) {
 	// check input size match
 	n := len(P)
@@ -178,18 +184,32 @@ func MillerLoop(P []G1Affine, Q []G2Affine) (GT, error) {
 		result.C1.B1 = prodLines[4]
 	}
 
-	// k >= 2
-	for k := 2; k < n; k++ {
-		// qProj[k] ← 2qProj[k] and l1 the tangent ℓ passing 2qProj[k]
-		qProj[k].doubleStep(&l1)
-		// line evaluation at P[k]
-		l1.r0.MulByElement(&l1.r0, &p[k].Y)
-		l1.r1.MulByElement(&l1.r1, &p[k].X)
-		// ℓ × res
-		result.MulBy034(&l1.r0, &l1.r1, &l1.r2)
+	var wg sync.WaitGroup
+	mu := sync.Mutex{}
+
+	parallelDoubleStep := func(start, end int) {
+		defer wg.Done()
+		localResult := GT{}
+		localResult.SetOne()
+
+		for i := start; i < end; i++ {
+			qProj[i].doubleStep(&l1)
+			l1.r0.MulByElement(&l1.r0, &p[i].Y)
+			l1.r1.MulByElement(&l1.r1, &p[i].X)
+			localResult.MulBy034(&l1.r0, &l1.r1, &l1.r2)
+		}
+
+		mu.Lock()
+		result.Mul(&result, &localResult)
+		mu.Unlock()
 	}
 
-	// i <= 61
+	for k := 2; k < n; k += 2 {
+		wg.Add(1)
+		go parallelDoubleStep(k, k+2)
+	}
+	wg.Wait()
+
 	for i := len(LoopCounter) - 3; i >= 1; i-- {
 		// mutualize the square among n Miller loops
 		// (∏ᵢfᵢ)²
@@ -218,7 +238,6 @@ func MillerLoop(P []G1Affine, Q []G2Affine) (GT, error) {
 				result.MulBy01234(&prodLines)
 			}
 		}
-
 	}
 
 	// i = 0, separately to avoid a point addition
@@ -396,24 +415,13 @@ func PrecomputeLines(Q G2Affine) (PrecomputedLines [2][len(LoopCounter) - 1]Line
 
 // MillerLoopFixedQ computes the multi-Miller loop as in MillerLoop
 // but Qᵢ are fixed points in G2 known in advance.
+
 func MillerLoopFixedQ(P []G1Affine, lines [][2][len(LoopCounter) - 1]LineEvaluationAff) (GT, error) {
 	n := len(P)
 	if n == 0 || n != len(lines) {
 		return GT{}, errors.New("invalid inputs sizes")
 	}
 
-	// no need to filter infinity points:
-	// 		1. if Pᵢ=(0,0) then -x/y=1/y=0 by gnark-crypto convention and so
-	// 		lines R0 and R1 are 0. At the end it happens that result will stay
-	// 		1 through the Miller loop because MulBy34(1,0,0)==1
-	// 		Mul34By34(1,0,0,1,0,0)==1 and MulBy01234(1,0,0,0,0)==1.
-	//
-	// 		2. if Qᵢ=(0,0) then PrecomputeLines(Qᵢ) will return lines R0 and R1
-	// 		that are 0 because of gnark-convention (*/0==0) in doubleStep and
-	// 		addStep. Similarly to Pᵢ=(0,0) it happens that result stays 1
-	// 		throughout the MillerLoop.
-
-	// precomputations
 	yInv := make([]fp.Element, n)
 	xNegOverY := make([]fp.Element, n)
 	for k := 0; k < n; k++ {
@@ -421,35 +429,21 @@ func MillerLoopFixedQ(P []G1Affine, lines [][2][len(LoopCounter) - 1]LineEvaluat
 	}
 	yInv = fp.BatchInvert(yInv)
 	for k := 0; k < n; k++ {
-		xNegOverY[k].Mul(&P[k].X, &yInv[k]).
-			Neg(&xNegOverY[k])
+		xNegOverY[k].Mul(&P[k].X, &yInv[k]).Neg(&xNegOverY[k])
 	}
 
 	var result GT
 	result.SetOne()
 	var prodLines [5]E2
 
-	// Compute ∏ᵢ { fᵢ_{x₀,Q}(P) }
 	if n >= 1 {
-		// i = 62, separately to avoid an E12 Square
-		// (Square(res) = 1² = 1)
-		// LoopCounter[62] = 0
-		// k = 0, separately to avoid MulBy34 (res × ℓ)
-		// (assign line to res)
-
-		// line evaluation at P[0] (assign)
 		result.C1.B0.MulByElement(&lines[0][0][62].R0, &xNegOverY[0])
 		result.C1.B1.MulByElement(&lines[0][0][62].R1, &yInv[0])
-		// the coefficient which MulBy34 sets to 1 happens to be already 1 (result = 1)
 	}
 
 	if n >= 2 {
-		// k = 1, separately to avoid MulBy34 (res × ℓ)
-		// (res is also a line at this point, so we use Mul34By34 ℓ × ℓ)
-		// line evaluation at P[1]
 		lines[1][0][62].R0.MulByElement(&lines[1][0][62].R0, &xNegOverY[1])
 		lines[1][0][62].R1.MulByElement(&lines[1][0][62].R1, &yInv[1])
-		// ℓ × res
 		prodLines = fptower.Mul34By34(&lines[1][0][62].R0, &lines[1][0][62].R1, &result.C1.B0, &result.C1.B1)
 		result.C0.B0 = prodLines[0]
 		result.C0.B1 = prodLines[1]
@@ -458,60 +452,44 @@ func MillerLoopFixedQ(P []G1Affine, lines [][2][len(LoopCounter) - 1]LineEvaluat
 		result.C1.B1 = prodLines[4]
 	}
 
-	// k >= 2
-	for k := 2; k < n; k++ {
-		// line evaluation at P[k]
-		lines[k][0][62].R0.MulByElement(&lines[k][0][62].R0, &xNegOverY[k])
-		lines[k][0][62].R1.MulByElement(&lines[k][0][62].R1, &yInv[k])
-		// ℓ × res
-		result.MulBy34(
-			&lines[k][0][62].R0,
-			&lines[k][0][62].R1,
-		)
+	var wg sync.WaitGroup
+	mu := sync.Mutex{}
+
+	parallelEval := func(start, end int) {
+		defer wg.Done()
+		localResult := GT{}
+		localResult.SetOne()
+
+		for k := start; k < end; k++ {
+			lines[k][0][62].R0.MulByElement(&lines[k][0][62].R0, &xNegOverY[k])
+			lines[k][0][62].R1.MulByElement(&lines[k][0][62].R1, &yInv[k])
+			localResult.MulBy34(&lines[k][0][62].R0, &lines[k][0][62].R1)
+		}
+
+		mu.Lock()
+		result.Mul(&result, &localResult)
+		mu.Unlock()
 	}
 
+	for k := 2; k < n; k += 2 {
+		wg.Add(1)
+		go parallelEval(k, k+2)
+	}
+	wg.Wait()
+
 	for i := len(LoopCounter) - 3; i >= 0; i-- {
-		// mutualize the square among n Miller loops
-		// (∏ᵢfᵢ)²
 		result.Square(&result)
 
 		for k := 0; k < n; k++ {
-			// line evaluation at P[k]
-			lines[k][0][i].R0.
-				MulByElement(
-					&lines[k][0][i].R0,
-					&xNegOverY[k],
-				)
-			lines[k][0][i].R1.
-				MulByElement(
-					&lines[k][0][i].R1,
-					&yInv[k],
-				)
+			lines[k][0][i].R0.MulByElement(&lines[k][0][i].R0, &xNegOverY[k])
+			lines[k][0][i].R1.MulByElement(&lines[k][0][i].R1, &yInv[k])
 
 			if LoopCounter[i] == 0 {
-				// ℓ × res
-				result.MulBy34(
-					&lines[k][0][i].R0,
-					&lines[k][0][i].R1,
-				)
+				result.MulBy34(&lines[k][0][i].R0, &lines[k][0][i].R1)
 			} else {
-				// line evaluation at P[k]
-				lines[k][1][i].R0.
-					MulByElement(
-						&lines[k][1][i].R0,
-						&xNegOverY[k],
-					)
-				lines[k][1][i].R1.
-					MulByElement(
-						&lines[k][1][i].R1,
-						&yInv[k],
-					)
-				// ℓ × ℓ
-				prodLines = fptower.Mul34By34(
-					&lines[k][0][i].R0, &lines[k][0][i].R1,
-					&lines[k][1][i].R0, &lines[k][1][i].R1,
-				)
-				// (ℓ × ℓ) × res
+				lines[k][1][i].R0.MulByElement(&lines[k][1][i].R0, &xNegOverY[k])
+				lines[k][1][i].R1.MulByElement(&lines[k][1][i].R1, &yInv[k])
+				prodLines = fptower.Mul34By34(&lines[k][0][i].R0, &lines[k][0][i].R1, &lines[k][1][i].R0, &lines[k][1][i].R1)
 				result.MulBy01234(&prodLines)
 			}
 		}
