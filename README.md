@@ -32,7 +32,7 @@ To plot benchmark results for the new implementation run:
 
 ```bash
 cd ecc/bls12-377/plots
-python plot.py
+python plot_benchmark.py
 ```
 ## Running Hashing and Pairing Benchmarks
 
